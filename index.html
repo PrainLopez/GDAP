@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A股总市值 vs GDP · 巴菲特指标</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+  :root {
+    --ink: #1f2328;
+    --sub: #6a737d;
+    --line: #e1e4e8;
+    --warn: #bf3989;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: var(--ink);
+    background: #f6f8fa;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 20px; font-weight: 600; }
+  .sub { color: var(--sub); font-size: 13px; margin-top: 6px; }
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 12px;
+    margin: 20px 0;
+  }
+  .stat {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px 16px;
+  }
+  .stat .label { font-size: 12px; color: var(--sub); }
+  .stat .value { font-size: 22px; font-weight: 600; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .stat .value.warn { color: var(--warn); }
+  .chart-box {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px 8px 4px;
+    margin-bottom: 16px;
+  }
+  .chart { width: 100%; height: 420px; }
+  .hint {
+    border: 1px dashed var(--line);
+    border-radius: 8px;
+    background: #fff;
+    padding: 14px 16px;
+    color: var(--sub);
+    font-size: 13px;
+    margin-bottom: 16px;
+    display: none;
+  }
+  .hint code { background: #eff1f3; padding: 1px 5px; border-radius: 4px; }
+  footer { color: var(--sub); font-size: 12px; line-height: 1.8; }
+  @media (max-width: 640px) { .chart { height: 320px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>A股总市值 vs 国内生产总值（GDP）</h1>
+    <div class="sub">总市值：通达信 880001 季度末收盘点位（×100 = 总市值，亿元） · GDP：之前四个季度单季 GDP 之和 · 比值即"巴菲特指标"</div>
+  </header>
+
+  <div class="stats" id="stats"></div>
+  <div class="hint" id="hint">
+    还没有市值数据，请先运行 <code>node scripts/fetch.mjs</code> 生成 <code>data/data.js</code>。
+  </div>
+
+  <div class="chart-box"><div id="chartMain" class="chart"></div></div>
+  <div class="chart-box"><div id="chartRatio" class="chart"></div></div>
+
+  <footer>
+    总市值来源：通达信 880001 指数（通达信行情服务器自动抓取），每季度最后一个交易日收盘点位，点位 ×100 即全部 A 股总市值（亿元）。<br>
+    GDP 来源：东方财富数据中心（转引国家统计局），由季度累计值差分得到单季值；每个位点的分母为该季度之前四个季度的单季 GDP 之和。<br>
+    巴菲特指标 = 总市值 ÷ 前四季度 GDP。70% 为常用低估参考线，仅作观察，不构成投资建议。
+  </footer>
+</div>
+
+<script src="data/data.js"></script>
+<script>
+(function () {
+  var el = document.getElementById('hint');
+  if (!window.echarts) { el.style.display = 'block'; el.textContent = 'ECharts 加载失败（需要联网加载 CDN）。'; return; }
+  var D = window.GDAP_DATA || { gdp: [], marketCap: [] };
+
+  var toWan = function (yi) { return yi / 10000; };          // 亿元 -> 万亿元
+  var fmtWan = function (v) { return v == null ? '—' : v.toFixed(1) + ' 万亿'; };
+  var fmtPct = function (v) { return v == null ? '—' : (v * 100).toFixed(1) + '%'; };
+
+  var labels = D.gdp.map(function (g) { return g.year + 'Q' + g.q; });
+  var capByQ = {};
+  D.marketCap.forEach(function (m) { capByQ[m.quarter] = m.value; });
+
+  // 分母：该季度之前四个季度的单季 GDP 之和
+  var gdpSeries = D.gdp.map(function (g) { return g.prevTtm != null ? toWan(g.prevTtm) : null; });
+  var capSeries = labels.map(function (l) { return capByQ[l] != null ? toWan(capByQ[l]) : null; });
+  var gdp70Series = gdpSeries.map(function (v) { return v == null ? null : v * 0.7; });
+  var ratioSeries = labels.map(function (l, i) {
+    var g = D.gdp[i];
+    return capByQ[l] != null && g.prevTtm ? capByQ[l] / g.prevTtm : null;
+  });
+
+  // 顶部统计卡
+  var lastIdx = -1;
+  for (var i = labels.length - 1; i >= 0; i--) { if (capSeries[i] != null && gdpSeries[i] != null) { lastIdx = i; break; } }
+  var stats = document.getElementById('stats');
+  var cards = [];
+  if (lastIdx >= 0) {
+    var r = ratioSeries[lastIdx];
+    cards.push({ label: '总市值（' + labels[lastIdx] + ' 末）', value: fmtWan(capSeries[lastIdx]) });
+    cards.push({ label: 'GDP 前四季度之和（至 ' + labels[lastIdx - 1] + '）', value: fmtWan(gdpSeries[lastIdx]) });
+    cards.push({ label: '巴菲特指标（' + labels[lastIdx] + '）', value: fmtPct(r), warn: r > 0.7 });
+  }
+  stats.innerHTML = cards.map(function (c) {
+    return '<div class="stat"><div class="label">' + c.label + '</div><div class="value' + (c.warn ? ' warn' : '') + '">' + c.value + '</div></div>';
+  }).join('');
+
+  if (lastIdx < 0) el.style.display = 'block';
+
+  var tooltipFmt = function (params) {
+    var q = params[0].axisValue;
+    var g = D.gdp[labels.indexOf(q)];
+    var lines = ['<b>' + q + '</b>'];
+    params.forEach(function (p) {
+      if (p.value == null) return;
+      var v = p.seriesName === '巴菲特指标' ? fmtPct(p.value) : fmtWan(p.value);
+      lines.push(p.marker + p.seriesName + '：' + v);
+    });
+    if (g && g.single != null && params[0].seriesName !== '巴菲特指标') {
+      lines.push('<span style="color:#6a737d">当季 GDP：' + toWan(g.single).toFixed(1) + ' 万亿</span>');
+    }
+    return lines.join('<br>');
+  };
+
+  var axisStyle = {
+    axisLabel: { color: '#6a737d', interval: 3, hideOverlap: true },
+    axisLine: { lineStyle: { color: '#d0d7de' } },
+    splitLine: { lineStyle: { color: '#eaeef2' } },
+  };
+
+  echarts.init(document.getElementById('chartMain')).setOption({
+    title: { text: '总市值 与 前四季度 GDP', textStyle: { fontSize: 14, fontWeight: 600 }, left: 8 },
+    tooltip: { trigger: 'axis', formatter: tooltipFmt },
+    legend: { top: 4, right: 8 },
+    grid: { left: 60, right: 40, top: 44, bottom: 60 },
+    xAxis: { type: 'category', data: labels, boundaryGap: false, ...axisStyle },
+    yAxis: { type: 'value', name: '万亿元', ...axisStyle },
+    dataZoom: [{ type: 'inside' }, { type: 'slider', height: 18, bottom: 12 }],
+    series: [
+      { name: '总市值（880001）', type: 'line', data: capSeries, connectNulls: true, symbolSize: 6,
+        lineStyle: { width: 2.5 }, itemStyle: { color: '#0969da' }, z: 3 },
+      { name: 'GDP 前四季度之和', type: 'line', data: gdpSeries, symbolSize: 6,
+        lineStyle: { width: 2 }, itemStyle: { color: '#2da44e' }, z: 2 },
+      { name: 'GDP 前四季度 × 70%', type: 'line', data: gdp70Series, symbolSize: 6,
+        lineStyle: { width: 1.5 }, itemStyle: { color: '#cf222e' }, z: 1 },
+    ],
+  });
+
+  echarts.init(document.getElementById('chartRatio')).setOption({
+    title: { text: '巴菲特指标 = 总市值 / 前四季度 GDP', textStyle: { fontSize: 14, fontWeight: 600 }, left: 8 },
+    tooltip: { trigger: 'axis', formatter: tooltipFmt },
+    grid: { left: 60, right: 40, top: 44, bottom: 60 },
+    xAxis: { type: 'category', data: labels, boundaryGap: false, ...axisStyle },
+    yAxis: { type: 'value', axisLabel: { color: '#6a737d', formatter: function (v) { return (v * 100).toFixed(0) + '%'; } },
+      axisLine: axisStyle.axisLine, splitLine: axisStyle.splitLine },
+    dataZoom: [{ type: 'inside' }, { type: 'slider', height: 18, bottom: 12 }],
+    series: [{
+      name: '巴菲特指标', type: 'line', data: ratioSeries, connectNulls: true, symbolSize: 6,
+      lineStyle: { width: 2.5 }, itemStyle: { color: '#bf3989' },
+      markLine: {
+        silent: true, symbol: 'none',
+        data: [{ yAxis: 0.7 }],
+        lineStyle: { color: '#cf222e', width: 1.5, type: 'solid' },
+        label: { formatter: '70% 参考线', position: 'insideStartTop', color: '#cf222e' },
+      },
+    }],
+  });
+
+  window.addEventListener('resize', function () {
+    ['chartMain', 'chartRatio'].forEach(function (id) {
+      echarts.getInstanceByDom(document.getElementById(id)).resize();
+    });
+  });
+})();
+</script>
+</body>
+</html>

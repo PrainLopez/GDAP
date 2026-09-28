@@ -1,0 +1,38 @@
+name: 更新数据
+
+on:
+  schedule:
+    # 每季度 GDP 公布后（1/4/7/10 月 18 日，北京时间 10:00）
+    - cron: '0 2 18 1,4,7,10 *'
+    # 每月 1 日刷新当季 880001 市值
+    - cron: '0 2 1 * *'
+  workflow_dispatch: # 允许手动触发
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: 抓取 GDP 与 880001 数据
+        run: node scripts/fetch.mjs
+        timeout-minutes: 5
+
+      - name: 提交 data.js（有变化时）
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/data.js
+          if git diff --cached --quiet; then
+            echo "数据无变化"
+          else
+            git commit -m "chore(data): 更新 GDP 与 880001 数据 $(date -u +%F)"
+            git push
+          fi
