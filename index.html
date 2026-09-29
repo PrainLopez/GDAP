@@ -73,6 +73,7 @@
 
   <div class="chart-box"><div id="chartMain" class="chart"></div></div>
   <div class="chart-box"><div id="chartRatio" class="chart"></div></div>
+  <div class="chart-box" id="chartWeeklyBox" style="display:none"><div id="chartWeekly" class="chart"></div></div>
 
   <footer>
     总市值来源：通达信 880001 指数（通达信行情服务器自动抓取），每季度最后一个交易日收盘点位，点位 ×100 即全部 A 股总市值（亿元）。<br>
@@ -85,9 +86,9 @@
   // data.js 会定期更新：http(s) 下加时间戳绕开浏览器缓存；
   // file:// 双击打开时不加 query（部分浏览器对 file:// 带 query 的资源解析有问题）
   (function () {
-    var src = 'data/data.js';
-    if (location.protocol !== 'file:') src += '?t=' + Date.now();
-    document.write('<script src="' + src + '"><\/script>');
+    var q = location.protocol !== 'file:' ? '?t=' + Date.now() : '';
+    document.write('<script src="data/data.js' + q + '"><\/script>');
+    document.write('<script src="data/weekly.js' + q + '"><\/script>');
   })();
 </script>
 <script>
@@ -123,6 +124,17 @@
     cards.push({ label: '总市值（' + labels[lastIdx] + ' 末）', value: fmtWan(capSeries[lastIdx]) });
     cards.push({ label: 'GDP 前四季度之和（至 ' + labels[lastIdx - 1] + '）', value: fmtWan(gdpSeries[lastIdx]) });
     cards.push({ label: '巴菲特指标（' + labels[lastIdx] + '）', value: fmtPct(r), warn: r > 0.7 });
+  }
+  // 周度统计卡：分母为最新已公布 GDP 季度的前四季度之和（周度数据来自 data/weekly.js）
+  var weekly = window.GDAP_WEEKLY || [];
+  var lastGdp = D.gdp.length ? D.gdp[D.gdp.length - 1] : null;
+  var weeklyDenom = lastGdp && lastGdp.prevTtm != null ? lastGdp.prevTtm : null;
+  var weeklyRatios = weekly.map(function (w) {
+    return weeklyDenom ? w.value / weeklyDenom : null;
+  });
+  if (weekly.length && weeklyDenom) {
+    var wr = weeklyRatios[weeklyRatios.length - 1];
+    cards.push({ label: '巴菲特指标（最新周 ' + weekly[weekly.length - 1].date + '）', value: fmtPct(wr), warn: wr > 0.7 });
   }
   stats.innerHTML = cards.map(function (c) {
     return '<div class="stat"><div class="label">' + c.label + '</div><div class="value' + (c.warn ? ' warn' : '') + '">' + c.value + '</div></div>';
@@ -189,9 +201,50 @@
     }],
   });
 
+  if (weekly.length && weeklyDenom) {
+    document.getElementById('chartWeeklyBox').style.display = 'block';
+    echarts.init(document.getElementById('chartWeekly')).setOption({
+      title: {
+        text: '近期周度巴菲特指标',
+        subtext: '分母：截至 ' + lastGdp.year + 'Q' + lastGdp.q + ' 的前四季度 GDP',
+        textStyle: { fontSize: 14, fontWeight: 600 }, left: 8,
+        subtextStyle: { color: '#6a737d' },
+      },
+      tooltip: {
+        trigger: 'axis',
+        formatter: function (params) {
+          var i = params[0].dataIndex;
+          var lines = ['<b>' + params[0].axisValue + '（周末）</b>'];
+          params.forEach(function (p) {
+            if (p.value == null) return;
+            lines.push(p.marker + p.seriesName + '：' + fmtPct(p.value));
+          });
+          lines.push('<span style="color:#6a737d">总市值：' + fmtWan(toWan(weekly[i].value)) + '</span>');
+          return lines.join('<br>');
+        },
+      },
+      grid: { left: 60, right: 40, top: 56, bottom: 60 },
+      xAxis: { type: 'category', data: weekly.map(function (w) { return w.date; }), boundaryGap: false, ...axisStyle },
+      yAxis: { type: 'value', axisLabel: { color: '#6a737d', formatter: function (v) { return (v * 100).toFixed(0) + '%'; } },
+        axisLine: axisStyle.axisLine, splitLine: axisStyle.splitLine },
+      dataZoom: [{ type: 'inside' }, { type: 'slider', height: 18, bottom: 12 }],
+      series: [{
+        name: '巴菲特指标', type: 'line', data: weeklyRatios, connectNulls: true, symbolSize: 6,
+        lineStyle: { width: 2.5 }, itemStyle: { color: '#bf3989' },
+        markLine: {
+          silent: true, symbol: 'none',
+          data: [{ yAxis: 0.7 }],
+          lineStyle: { color: '#cf222e', width: 1.5, type: 'solid' },
+          label: { formatter: '70% 参考线', position: 'insideStartTop', color: '#cf222e' },
+        },
+      }],
+    });
+  }
+
   window.addEventListener('resize', function () {
-    ['chartMain', 'chartRatio'].forEach(function (id) {
-      echarts.getInstanceByDom(document.getElementById(id)).resize();
+    ['chartMain', 'chartRatio', 'chartWeekly'].forEach(function (id) {
+      var inst = echarts.getInstanceByDom(document.getElementById(id));
+      if (inst) inst.resize();
     });
   });
 })();

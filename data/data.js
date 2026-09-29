@@ -714,7 +714,7 @@ window.GDAP_DATA = {
   {
    "quarter": "2026Q3",
    "date": "2026-09-29",
-   "value": 1109805
+   "value": 1112861
   }
  ]
 };

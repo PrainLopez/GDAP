@@ -1,8 +1,9 @@
-// 数据生成脚本：Node 18+ 直接运行 `node scripts/fetch.mjs`
+// 季度数据生成脚本：Node 18+ 直接运行 `node scripts/fetch.mjs`
 //   GDP  - 自动抓取：东方财富数据中心（转引国家统计局），DOMESTICL_PRODUCT_BASE 为当季累计值（亿元）
 //   市值 - 自动抓取：通达信行情协议取 880001 季度K线收盘点位（×100 = 全部 A 股总市值，亿元）
 //          data/market_cap.manual.json 可覆盖指定季度（如 [{"quarter":"2025Q4","value":1050000}]）
 // 输出 data/data.js（页面直接 <script> 引入，file:// 双击可开）
+// 周度数据由 scripts/fetch-weekly.mjs 单独生成（data/weekly.js）
 
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';

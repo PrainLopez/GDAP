@@ -6,8 +6,9 @@
 ## 数据（全部自动抓取）
 
 ```bash
-node scripts/fetch.mjs   # 生成 data/data.js
-open index.html          # 双击打开也行，无需起服务
+node scripts/fetch.mjs         # 生成 data/data.js（GDP + 季度市值）
+node scripts/fetch-weekly.mjs  # 生成 data/weekly.js（上季度初至今的周度市值）
+open index.html                # 双击打开也行，无需起服务
 ```
 
 - **总市值**：`scripts/tdx.mjs` 直连通达信标准行情服务器（TCP 7709），
@@ -21,8 +22,13 @@ open index.html          # 双击打开也行，无需起服务
 
 ## 自动更新（GitHub Actions）
 
-`.github/workflows/update.yml` 已配置：每季度 GDP 公布后（1/4/7/10 月 18 日）自动抓取并提交
-`data/data.js`，每月 1 日额外刷新当季 880001，也可在 Actions 页面手动触发。
+更新拆成两个独立 workflow，互不覆盖，均可在 Actions 页面手动触发：
+
+- `.github/workflows/update.yml`（更新季度数据）：每季度 GDP 公布后（1/4/7/10 月 18 日）
+  运行 `scripts/fetch.mjs`，提交 `data/data.js`。
+- `.github/workflows/update-weekly.yml`（更新周度数据）：每周日运行 `scripts/fetch-weekly.mjs`，
+  提交 `data/weekly.js`。
+
 配合 GitHub Pages（Settings → Pages → 选 main 分支根目录）即可完全无人值守。
 
 ## 运行机制与不稳定风险

@@ -1,9 +1,9 @@
-name: 更新季度数据
+name: 更新周度数据
 
 on:
   schedule:
-    # 每季度 GDP 公布后（1/4/7/10 月 18 日，北京时间 10:15）
-    - cron: "15 10 18 1,4,7,10 *"
+    # 每周日收盘时间刷新 880001 周K（北京时间 4:00）
+    - cron: "0 4 * * 0"
   workflow_dispatch: # 允许手动触发
 
 permissions:
@@ -19,18 +19,18 @@ jobs:
         with:
           node-version: 22
 
-      - name: 抓取 GDP 与 880001 数据
-        run: node scripts/fetch.mjs
+      - name: 抓取 880001 周K数据
+        run: node scripts/fetch-weekly.mjs
         timeout-minutes: 5
 
-      - name: 提交 data.js（有变化时）
+      - name: 提交 weekly.js（有变化时）
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/data.js
+          git add data/weekly.js
           if git diff --cached --quiet; then
             echo "数据无变化"
           else
-            git commit -m "chore(data): 更新 GDP 与 880001 数据 $(date -u +%F)"
+            git commit -m "chore(data): 更新 880001 周度数据 $(date -u +%F)"
             git push
           fi

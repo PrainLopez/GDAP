@@ -19,6 +19,7 @@ const SETUP_PKGS = [
 ].map((h) => Buffer.from(h, 'hex'));
 
 const CAT_QUARTER = 10; // 季线
+const CAT_WEEK = 5; // 周线
 const MARKET_SH = 1; // 880001 挂在市场 1 下
 
 function buildBarsPkg(market, code, category, start, count) {
@@ -126,18 +127,18 @@ function parseIndexBars(body) {
   return rows;
 }
 
-// 抓取 880001 全部季度K线，返回 [{date, close}]（新到旧），失败时自动切换服务器
-export async function fetch880001Quarterly() {
+// 抓取 880001 K线，返回 [{date, close}]（新到旧），失败时自动切换服务器
+async function fetchBars(category, count, label) {
   let lastErr;
   for (const host of HOSTS) {
     const t = new TdxClient(host);
     try {
       await t.connect();
       await t.setup();
-      const body = await t.call(buildBarsPkg(MARKET_SH, '880001', CAT_QUARTER, 0, 800));
+      const body = await t.call(buildBarsPkg(MARKET_SH, '880001', category, 0, count));
       const rows = parseIndexBars(body);
       if (!rows.length) throw new Error('空数据');
-      console.log(`880001 季度K：${rows.length} 条（服务器 ${host}）`);
+      console.log(`880001 ${label}：${rows.length} 条（服务器 ${host}）`);
       return rows;
     } catch (e) {
       lastErr = e;
@@ -147,4 +148,14 @@ export async function fetch880001Quarterly() {
     }
   }
   throw lastErr;
+}
+
+// 全部季度K线（约 800 根，远超实际需要）
+export function fetch880001Quarterly() {
+  return fetchBars(CAT_QUARTER, 800, '季度K');
+}
+
+// 最近 60 根周K（约 14 个月，覆盖"上季度初至今"并留余量）
+export function fetch880001Weekly() {
+  return fetchBars(CAT_WEEK, 60, '周K');
 }
