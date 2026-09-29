@@ -54,6 +54,22 @@ open index.html          # 双击打开也行，无需起服务
 [{ "quarter": "2025Q4", "value": 1050000 }]
 ```
 
+## 缓存策略
+
+`data/data.js` 会定期更新，缓存分两层：
+
+- **浏览器缓存**：`index.html` 加载 `data.js` 时在 URL 后加时间戳 query
+  （`data/data.js?t=...`），http(s) 访问下每次都拿最新文件；
+  `file://` 双击打开时自动跳过 query（避免部分浏览器解析问题）。
+- **托管方 CDN 缓存**：GitHub Pages 固定 `Cache-Control: max-age=600`（10 分钟），
+  不可配置——数据更新后访客最多晚 10 分钟看到，对本项目（季度级数据）可接受。
+  若改部署到 Netlify / Cloudflare Pages，可加 `_headers` 文件收紧：
+
+  ```
+  /data/*
+    Cache-Control: no-cache
+  ```
+
 ## 备注
 
 - 页面通过 CDN 加载 ECharts，首次打开需联网。

@@ -81,7 +81,15 @@
   </footer>
 </div>
 
-<script src="data/data.js"></script>
+<script>
+  // data.js 会定期更新：http(s) 下加时间戳绕开浏览器缓存；
+  // file:// 双击打开时不加 query（部分浏览器对 file:// 带 query 的资源解析有问题）
+  (function () {
+    var src = 'data/data.js';
+    if (location.protocol !== 'file:') src += '?t=' + Date.now();
+    document.write('<script src="' + src + '"><\/script>');
+  })();
+</script>
 <script>
 (function () {
   var el = document.getElementById('hint');
