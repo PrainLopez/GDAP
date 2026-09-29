@@ -68,19 +68,8 @@ async function fetchGdp() {
     }
   }
 
-  // 若当前季度 GDP 尚未公布，补一个占位季度：single 为 null，
-  // prevTtm 用最近四个已公布季度之和，使当季 880001 市值点能参与计算
-  const now = new Date();
-  const curYear = now.getFullYear();
-  const curQ = Math.floor(now.getMonth() / 3) + 1;
-  const last = singles.at(-1);
-  if (last.year < curYear || (last.year === curYear && last.q < curQ)) {
-    const prev = singles.slice(-4).reduce((s, x) => s + x.single, 0);
-    singles.push({
-      year: curYear, q: curQ, cumulative: null, single: null,
-      prevTtm: Math.round(prev * 10) / 10,
-    });
-  }
+  // 只保留 GDP 已正式公布的季度：进行中的季度（市值未收盘、分母口径不齐）不显示，
+  // 待统计局公布当季 GDP 后（季后约 15-18 天）该季度点自动出现
   return singles;
 }
 
