@@ -68,9 +68,9 @@ async function fetchGdp() {
     }
   }
 
-  // 只保留 GDP 已正式公布的季度：进行中的季度（市值未收盘、分母口径不齐）不显示，
-  // 待统计局公布当季 GDP 后（季后约 15-18 天）该季度点自动出现
-  return singles;
+  // 截断 2011Q4 之前的数据（880001 季度K线从 2011Q4 起，更早季度无配对市值）。
+  // 注意：prevTtm 必须先用完整历史算好再截断——2011Q4 的分母需要 2010Q4–2011Q3 的单季值
+  return singles.filter((s) => s.year > 2011 || (s.year === 2011 && s.q >= 4));
 }
 
 // ---------- 主流程 ----------
@@ -101,7 +101,9 @@ async function main() {
   const manual = await readJsonSafe(MANUAL_FILE, []);
   const merged = new Map(fromTdx.map((m) => [m.quarter, m]));
   for (const m of manual) merged.set(m.quarter, { ...m, manual: true });
-  const marketCap = [...merged.values()].sort((a, b) => a.quarter.localeCompare(b.quarter));
+  const marketCap = [...merged.values()]
+    .filter((m) => m.quarter >= '2011Q4') // 与 GDP 截断点对齐
+    .sort((a, b) => a.quarter.localeCompare(b.quarter));
 
   const out = `// 由 scripts/fetch.mjs 生成于 ${today}，请勿手改
 window.GDAP_DATA = ${JSON.stringify({ gdp, marketCap }, null, 1)};
