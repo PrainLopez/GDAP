@@ -4,7 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>A股总市值 vs GDP · 巴菲特指标</title>
-<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/react-charts@3.0.0-beta.57/dist/react-charts.production.min.js"></script>
 <style>
   :root {
     --ink: #1f2328;
@@ -44,6 +46,32 @@
     margin-bottom: 16px;
   }
   .chart { width: 100%; height: 420px; }
+  .chart-panel { height: 100%; display: flex; flex-direction: column; min-width: 0; }
+  .chart-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 4px 16px;
+    padding: 2px 10px 0;
+  }
+  .chart-title { font-size: 14px; font-weight: 600; }
+  .chart-sub { font-size: 12px; color: var(--sub); margin-top: 2px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; }
+  .legend-item { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+  .legend-swatch { flex: none; width: 10px; height: 10px; border-radius: 2px; }
+  .chart-inner { flex: 1; min-height: 0; }
+  .zoom { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 2px 12px 6px; min-width: 0; }
+  .zoom input[type="range"] { flex: 1 1 40%; min-width: 0; height: 18px; margin: 0; accent-color: #0969da; }
+  .zoom-range {
+    flex: none;
+    text-align: right;
+    font-size: 12px;
+    color: var(--sub);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  @media (max-width: 640px) { .zoom-range { flex: 1 1 100%; text-align: center; } }
   .hint {
     border: 1px dashed var(--line);
     border-radius: 8px;
@@ -94,12 +122,18 @@
 <script>
 (function () {
   var el = document.getElementById('hint');
-  if (!window.echarts) { el.style.display = 'block'; el.textContent = 'ECharts 加载失败（需要联网加载 CDN）。'; return; }
+  if (!window.React || !window.ReactDOM || !window.ReactCharts) {
+    el.style.display = 'block';
+    el.textContent = 'TanStack Charts 加载失败（需要联网加载 CDN）。';
+    return;
+  }
   var D = window.GDAP_DATA || { gdp: [], marketCap: [] };
+  var h = React.createElement;
 
   var toWan = function (yi) { return yi / 10000; };          // 亿元 -> 万亿元
   var fmtWan = function (v) { return v == null ? '—' : v.toFixed(1) + ' 万亿'; };
   var fmtPct = function (v) { return v == null ? '—' : (v * 100).toFixed(1) + '%'; };
+  var fmtPct0 = function (v) { return v == null ? '' : (v * 100).toFixed(0) + '%'; };
 
   var labels = D.gdp.map(function (g) { return g.year + 'Q' + g.q; });
   var capByQ = {};
@@ -142,111 +176,174 @@
 
   if (lastIdx < 0) el.style.display = 'block';
 
-  var tooltipFmt = function (params) {
-    var q = params[0].axisValue;
-    var g = D.gdp[labels.indexOf(q)];
-    var lines = ['<b>' + q + '</b>'];
-    params.forEach(function (p) {
-      if (p.value == null) return;
-      var v = p.seriesName === '巴菲特指标' ? fmtPct(p.value) : fmtWan(p.value);
-      lines.push(p.marker + p.seriesName + '：' + v);
-    });
-    if (g && g.single != null && params[0].seriesName !== '巴菲特指标') {
-      lines.push('<span style="color:#6a737d">当季 GDP：' + toWan(g.single).toFixed(1) + ' 万亿</span>');
-    }
-    return lines.join('<br>');
-  };
+  // ---- TanStack Charts（react-charts） ----
+  var MIN_WINDOW = 5; // 缩放窗口最少显示的点数
 
-  var axisStyle = {
-    axisLabel: { color: '#6a737d', interval: 3, hideOverlap: true },
-    axisLine: { lineStyle: { color: '#d0d7de' } },
-    splitLine: { lineStyle: { color: '#eaeef2' } },
-  };
+  function LinePanel(props) {
+    var n = props.labels.length;
+    var rangeState = React.useState([0, n - 1]);
+    var range = rangeState[0], setRange = rangeState[1];
+    var start = range[0], end = range[1];
 
-  echarts.init(document.getElementById('chartMain')).setOption({
-    title: { text: '总市值 与 前四季度 GDP', textStyle: { fontSize: 14, fontWeight: 600 }, left: 8 },
-    tooltip: { trigger: 'axis', formatter: tooltipFmt },
-    legend: { top: 4, right: 8 },
-    grid: { left: 60, right: 40, top: 44, bottom: 60 },
-    xAxis: { type: 'category', data: labels, boundaryGap: false, ...axisStyle },
-    yAxis: { type: 'value', name: '万亿元', ...axisStyle },
-    dataZoom: [{ type: 'inside' }, { type: 'slider', height: 18, bottom: 12 }],
+    // null 值对应的点直接跳过，折线自动跨过缺口（等同 ECharts 的 connectNulls）
+    var data = React.useMemo(function () {
+      return props.series.map(function (s) {
+        var datums = [];
+        for (var i = start; i <= end; i++) {
+          var v = s.values[i];
+          if (v == null) continue;
+          var d = { x: props.labels[i], y: v };
+          if (s.extra) {
+            var ex = s.extra(i);
+            for (var k in ex) d[k] = ex[k];
+          }
+          datums.push(d);
+        }
+        return { label: s.label, data: datums };
+      });
+    }, [props, start, end]);
+
+    var thin = Math.max(1, Math.ceil(n / (window.innerWidth < 640 ? 7 : 14))); // x 轴标签抽稀
+    var primaryAxis = React.useMemo(function () {
+      return {
+        getValue: function (d) { return d.x; },
+        scaleType: 'band',
+        formatters: {
+          scale: function (v) {
+            var i = props.labels.indexOf(v);
+            return i >= 0 && i % thin === 0 ? String(v) : '';
+          },
+        },
+      };
+    }, [props, thin]);
+
+    var secondaryAxes = React.useMemo(function () {
+      return [{
+        getValue: function (d) { return d.y; },
+        elementType: 'line',
+        showDatumElements: true, // 始终渲染数据点（tooltip 锚点依赖它定位）
+        formatters: { scale: props.fmtAxis, cursor: props.fmtCursor },
+      }];
+    }, [props]);
+
+    var getSeriesStyle = React.useCallback(function (series) {
+      return props.series[series.index] && props.series[series.index].dash
+        ? { line: { strokeDasharray: '6 4' } }
+        : {};
+    }, [props]);
+
+    var renderTooltip = function (tp) {
+      var d = tp.focusedDatum;
+      if (!d) return null;
+      var group = (d.tooltipGroup || [d]).slice().sort(function (a, b) { return a.seriesIndex - b.seriesIndex; });
+      return h('div', { style: { fontSize: 12, lineHeight: 1.8, padding: '2px 4px', whiteSpace: 'nowrap' } },
+        h('div', { style: { fontWeight: 600 } }, String(d.primaryValue) + (props.titleSuffix || '')),
+        group.map(function (gd, i) {
+          var s = props.series[gd.seriesIndex] || {};
+          return h('div', { key: i, style: { display: 'flex', alignItems: 'center', gap: 6 } },
+            h('span', { style: { flex: 'none', width: 8, height: 8, borderRadius: '50%', background: s.color } }),
+            h('span', null, gd.seriesLabel + '：' + props.fmtValue(gd.secondaryValue))
+          );
+        }),
+        props.tooltipExtra ? h('div', { style: { color: '#6a737d' } }, props.tooltipExtra(d)) : null
+      );
+    };
+
+    var options = React.useMemo(function () {
+      return {
+        data: data,
+        primaryAxis: primaryAxis,
+        secondaryAxes: secondaryAxes,
+        defaultColors: props.series.map(function (s) { return s.color; }),
+        getSeriesStyle: getSeriesStyle,
+        initialWidth: 900,
+        initialHeight: 320,
+        tooltip: { render: renderTooltip },
+      };
+    }, [data, primaryAxis, secondaryAxes, getSeriesStyle]);
+
+    return h('div', { className: 'chart-panel' },
+      h('div', { className: 'chart-head' },
+        h('div', null,
+          h('div', { className: 'chart-title' }, props.title),
+          props.subtext ? h('div', { className: 'chart-sub' }, props.subtext) : null
+        ),
+        h('div', { className: 'legend' }, props.series.map(function (s) {
+          return h('span', { className: 'legend-item', key: s.label },
+            h('span', { className: 'legend-swatch', style: { background: s.color } }), s.label);
+        }))
+      ),
+      h('div', { className: 'chart-inner' }, h(ReactCharts.Chart, { options: options })),
+      h('div', { className: 'zoom' },
+        h('input', {
+          type: 'range', min: 0, max: Math.max(0, n - MIN_WINDOW), value: start, 'aria-label': '起始位置',
+          onChange: function (e) { var v = +e.target.value; setRange([v, Math.max(end, v + MIN_WINDOW - 1)]); },
+        }),
+        h('input', {
+          type: 'range', min: Math.min(MIN_WINDOW - 1, n - 1), max: n - 1, value: end, 'aria-label': '结束位置',
+          onChange: function (e) { var v = +e.target.value; setRange([Math.min(start, v - MIN_WINDOW + 1), v]); },
+        }),
+        h('span', { className: 'zoom-range' }, props.labels[start] + ' – ' + props.labels[end])
+      )
+    );
+  }
+
+  function mount(id, panelProps) {
+    var node = document.getElementById(id);
+    if (node) ReactDOM.createRoot(node).render(h(LinePanel, panelProps));
+  }
+
+  var singleExtra = function (i) { return { single: D.gdp[i].single }; };
+
+  mount('chartMain', {
+    title: '总市值 与 前四季度 GDP（万亿元）',
+    labels: labels,
     series: [
-      { name: '总市值（880001）', type: 'line', data: capSeries, connectNulls: true, symbolSize: 6,
-        lineStyle: { width: 2.5 }, itemStyle: { color: '#0969da' }, z: 3 },
-      { name: 'GDP 前四季度之和', type: 'line', data: gdpSeries, symbolSize: 6,
-        lineStyle: { width: 2 }, itemStyle: { color: '#2da44e' }, z: 2 },
-      { name: 'GDP 前四季度 × 70%', type: 'line', data: gdp70Series, symbolSize: 6,
-        lineStyle: { width: 1.5 }, itemStyle: { color: '#cf222e' }, z: 1 },
+      { label: '总市值（880001）', color: '#0969da', values: capSeries, extra: singleExtra },
+      { label: 'GDP 前四季度之和', color: '#2da44e', values: gdpSeries, extra: singleExtra },
+      { label: 'GDP 前四季度 × 70%', color: '#cf222e', values: gdp70Series, dash: true, extra: singleExtra },
     ],
+    fmtAxis: function (v) { return String(v); },
+    fmtCursor: function (v) { return v == null ? '' : v.toFixed(1); },
+    fmtValue: fmtWan,
+    tooltipExtra: function (d) {
+      var s = d.originalDatum.single;
+      return s != null ? '当季 GDP：' + toWan(s).toFixed(1) + ' 万亿' : '';
+    },
   });
 
-  echarts.init(document.getElementById('chartRatio')).setOption({
-    title: { text: '巴菲特指标 = 总市值 / 前四季度 GDP', textStyle: { fontSize: 14, fontWeight: 600 }, left: 8 },
-    tooltip: { trigger: 'axis', formatter: tooltipFmt },
-    grid: { left: 60, right: 40, top: 44, bottom: 60 },
-    xAxis: { type: 'category', data: labels, boundaryGap: false, ...axisStyle },
-    yAxis: { type: 'value', axisLabel: { color: '#6a737d', formatter: function (v) { return (v * 100).toFixed(0) + '%'; } },
-      axisLine: axisStyle.axisLine, splitLine: axisStyle.splitLine },
-    dataZoom: [{ type: 'inside' }, { type: 'slider', height: 18, bottom: 12 }],
-    series: [{
-      name: '巴菲特指标', type: 'line', data: ratioSeries, connectNulls: true, symbolSize: 6,
-      lineStyle: { width: 2.5 }, itemStyle: { color: '#bf3989' },
-      markLine: {
-        silent: true, symbol: 'none',
-        data: [{ yAxis: 0.7 }],
-        lineStyle: { color: '#cf222e', width: 1.5, type: 'solid' },
-        label: { formatter: '70% 参考线', position: 'insideStartTop', color: '#cf222e' },
-      },
-    }],
+  mount('chartRatio', {
+    title: '巴菲特指标 = 总市值 / 前四季度 GDP',
+    labels: labels,
+    series: [
+      { label: '巴菲特指标', color: '#bf3989', values: ratioSeries },
+      { label: '70% 参考线', color: '#cf222e', values: labels.map(function () { return 0.7; }), dash: true },
+    ],
+    fmtAxis: fmtPct0,
+    fmtCursor: fmtPct,
+    fmtValue: fmtPct,
   });
 
   if (weekly.length && weeklyDenom) {
     document.getElementById('chartWeeklyBox').style.display = 'block';
-    echarts.init(document.getElementById('chartWeekly')).setOption({
-      title: {
-        text: '近期周度巴菲特指标',
-        subtext: '分母：截至 ' + lastGdp.year + 'Q' + lastGdp.q + ' 的前四季度 GDP',
-        textStyle: { fontSize: 14, fontWeight: 600 }, left: 8,
-        subtextStyle: { color: '#6a737d' },
+    mount('chartWeekly', {
+      title: '近期周度巴菲特指标',
+      subtext: '分母：截至 ' + lastGdp.year + 'Q' + lastGdp.q + ' 的前四季度 GDP',
+      labels: weekly.map(function (w) { return w.date; }),
+      series: [
+        { label: '巴菲特指标', color: '#bf3989', values: weeklyRatios, extra: function (i) { return { cap: weekly[i].value }; } },
+        { label: '70% 参考线', color: '#cf222e', values: weekly.map(function () { return 0.7; }), dash: true },
+      ],
+      fmtAxis: fmtPct0,
+      fmtCursor: fmtPct,
+      fmtValue: fmtPct,
+      titleSuffix: '（周末）',
+      tooltipExtra: function (d) {
+        var c = d.originalDatum.cap;
+        return c != null ? '总市值：' + fmtWan(toWan(c)) : '';
       },
-      tooltip: {
-        trigger: 'axis',
-        formatter: function (params) {
-          var i = params[0].dataIndex;
-          var lines = ['<b>' + params[0].axisValue + '（周末）</b>'];
-          params.forEach(function (p) {
-            if (p.value == null) return;
-            lines.push(p.marker + p.seriesName + '：' + fmtPct(p.value));
-          });
-          lines.push('<span style="color:#6a737d">总市值：' + fmtWan(toWan(weekly[i].value)) + '</span>');
-          return lines.join('<br>');
-        },
-      },
-      grid: { left: 60, right: 40, top: 56, bottom: 60 },
-      xAxis: { type: 'category', data: weekly.map(function (w) { return w.date; }), boundaryGap: false, ...axisStyle },
-      yAxis: { type: 'value', axisLabel: { color: '#6a737d', formatter: function (v) { return (v * 100).toFixed(0) + '%'; } },
-        axisLine: axisStyle.axisLine, splitLine: axisStyle.splitLine },
-      dataZoom: [{ type: 'inside' }, { type: 'slider', height: 18, bottom: 12 }],
-      series: [{
-        name: '巴菲特指标', type: 'line', data: weeklyRatios, connectNulls: true, symbolSize: 6,
-        lineStyle: { width: 2.5 }, itemStyle: { color: '#bf3989' },
-        markLine: {
-          silent: true, symbol: 'none',
-          data: [{ yAxis: 0.7 }],
-          lineStyle: { color: '#cf222e', width: 1.5, type: 'solid' },
-          label: { formatter: '70% 参考线', position: 'insideStartTop', color: '#cf222e' },
-        },
-      }],
     });
   }
-
-  window.addEventListener('resize', function () {
-    ['chartMain', 'chartRatio', 'chartWeekly'].forEach(function (id) {
-      var inst = echarts.getInstanceByDom(document.getElementById(id));
-      if (inst) inst.resize();
-    });
-  });
 })();
 </script>
 </body>
