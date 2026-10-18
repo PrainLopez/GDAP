@@ -1,4 +1,4 @@
-// 由 scripts/fetch.mjs 生成于 2026-09-29，请勿手改
+// 由 scripts/fetch.mjs 生成于 2026-10-18，请勿手改
 window.GDAP_DATA = {
  "gdp": [
   {
@@ -713,8 +713,13 @@ window.GDAP_DATA = {
   },
   {
    "quarter": "2026Q3",
-   "date": "2026-09-29",
-   "value": 1112861
+   "date": "2026-09-30",
+   "value": 1113471
+  },
+  {
+   "quarter": "2026Q4",
+   "date": "2026-10-16",
+   "value": 1052215
   }
  ]
 };
