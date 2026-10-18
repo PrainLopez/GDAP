@@ -1,4 +1,4 @@
-// 由 scripts/fetch-weekly.mjs 生成于 2026-10-11，请勿手改
+// 由 scripts/fetch-weekly.mjs 生成于 2026-10-18，请勿手改
 window.GDAP_WEEKLY = [
  {
   "date": "2026-07-03",
@@ -59,5 +59,9 @@ window.GDAP_WEEKLY = [
  {
   "date": "2026-10-09",
   "value": 1099069
+ },
+ {
+  "date": "2026-10-16",
+  "value": 1052215
  }
 ];
