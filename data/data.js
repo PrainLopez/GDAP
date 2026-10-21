@@ -1,4 +1,4 @@
-// 由 scripts/fetch.mjs 生成于 2026-10-21，请勿手改
+// 由 scripts/fetch.mjs 生成，请勿手改
 window.GDAP_DATA = {
  "gdp": [
   {

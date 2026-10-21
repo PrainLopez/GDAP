@@ -17,17 +17,15 @@ open index.html                # 双击打开也行，无需起服务
 - **GDP**：东方财富数据中心（转引国家统计局），由季度累计值差分得到单季值；
   每个位点的分母 = 该季度**之前四个季度**的单季 GDP 之和。
 
-更新频率：GDP 每年 1/4/7/10 月公布后跑一次即可。图表只显示 GDP 已正式公布的季度
+更新频率：GDP 公布日期不固定，由每周自动任务顺带刷新（见下文）。图表只显示 GDP 已正式公布的季度
 （进行中的季度市值未收盘、与分母口径不齐，不展示）；当季 GDP 公布后该季度点自动出现。
 
 ## 自动更新（GitHub Actions）
 
-更新拆成两个独立 workflow，互不覆盖，均可在 Actions 页面手动触发：
+单个 workflow 每周日自动运行（也可在 Actions 页面手动触发），同时刷新周度与季度数据：
 
-- `.github/workflows/update.yml`（更新季度数据）：每季度 GDP 公布后（1/4/7/10 月 18 日）
-  运行 `scripts/fetch.mjs`，提交 `data/data.js`。
-- `.github/workflows/update-weekly.yml`（更新周度数据）：每周日运行 `scripts/fetch-weekly.mjs`，
-  提交 `data/weekly.js`。
+- `.github/workflows/update-weekly.yml`：每周日运行 `scripts/fetch-weekly.mjs` 与 `scripts/fetch.mjs`，
+  分别提交 `data/weekly.js` 与 `data/data.js`（数据无变化则不提交）。
 
 配合 GitHub Pages（Settings → Pages → 选 main 分支根目录）即可完全无人值守。
 

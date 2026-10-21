@@ -12,8 +12,6 @@ import { fetch880001Weekly } from './tdx.mjs';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DATA_DIR = join(ROOT, 'data');
 
-const today = new Date().toISOString().slice(0, 10);
-
 // 上季度第一个自然日（如 2026-09-29 -> 2026-04-01）
 function prevQuarterStart(now = new Date()) {
   const q = Math.floor(now.getMonth() / 3); // 本季度 0..3
@@ -34,7 +32,7 @@ async function main() {
     .map((b) => ({ date: b.date, value: Math.round(b.close * 100) }))
     .sort((a, b) => a.date.localeCompare(b.date));
 
-  const out = `// 由 scripts/fetch-weekly.mjs 生成于 ${today}，请勿手改
+  const out = `// 由 scripts/fetch-weekly.mjs 生成，请勿手改
 window.GDAP_WEEKLY = ${JSON.stringify(weekly, null, 1)};
 `;
   await writeFile(join(DATA_DIR, 'weekly.js'), out);

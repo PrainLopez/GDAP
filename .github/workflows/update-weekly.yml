@@ -2,7 +2,8 @@ name: 更新周度数据
 
 on:
   schedule:
-    # 每周日收盘时间刷新 880001 周K（北京时间 4:00）
+    # 每周日收盘时间刷新 880001 周K，顺带刷新季度 GDP/市值
+    # （GDP 公布日期不固定，靠每周重跑自然补上最新季度）
     - cron: "0 4 * * 0"
   workflow_dispatch: # 允许手动触发
 
@@ -11,26 +12,28 @@ permissions:
 
 jobs:
   update:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
 
-      - name: 抓取 880001 周K数据
-        run: node scripts/fetch-weekly.mjs
+      - name: 抓取 880001 周K与季度数据
+        run: |
+          node scripts/fetch-weekly.mjs
+          node scripts/fetch.mjs
         timeout-minutes: 5
 
-      - name: 提交 weekly.js（有变化时）
+      - name: 提交数据文件（有变化时）
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/weekly.js
+          git add data/weekly.js data/data.js
           if git diff --cached --quiet; then
             echo "数据无变化"
           else
-            git commit -m "chore(data): 更新 880001 周度数据 $(date -u +%F)"
+            git commit -m "chore(data): 更新 880001 与季度数据 $(date -u +%F)"
             git push
           fi

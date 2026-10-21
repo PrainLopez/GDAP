@@ -83,8 +83,6 @@ async function readJsonSafe(file, fallback) {
   }
 }
 
-const today = new Date().toISOString().slice(0, 10);
-
 async function main() {
   await mkdir(DATA_DIR, { recursive: true });
 
@@ -106,7 +104,7 @@ async function main() {
     .filter((m) => m.quarter >= '2011Q4') // 与 GDP 截断点对齐
     .sort((a, b) => a.quarter.localeCompare(b.quarter));
 
-  const out = `// 由 scripts/fetch.mjs 生成于 ${today}，请勿手改
+  const out = `// 由 scripts/fetch.mjs 生成，请勿手改
 window.GDAP_DATA = ${JSON.stringify({ gdp, marketCap }, null, 1)};
 `;
   await writeFile(join(DATA_DIR, 'data.js'), out);
