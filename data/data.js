@@ -1,4 +1,4 @@
-// 由 scripts/fetch.mjs 生成于 2026-10-18，请勿手改
+// 由 scripts/fetch.mjs 生成于 2026-10-21，请勿手改
 window.GDAP_DATA = {
  "gdp": [
   {
@@ -354,16 +354,16 @@ window.GDAP_DATA = {
   {
    "year": 2024,
    "q": 2,
-   "cumulative": 633599.4,
-   "single": 328837.6,
+   "cumulative": 633110.6,
+   "single": 328348.8,
    "prevTtm": 1306664.7
   },
   {
    "year": 2024,
    "q": 3,
    "cumulative": 974553.8,
-   "single": 340954.4,
-   "prevTtm": 1319264.8
+   "single": 341443.2,
+   "prevTtm": 1318776
   },
   {
    "year": 2024,
@@ -391,7 +391,7 @@ window.GDAP_DATA = {
    "q": 3,
    "cumulative": 1013967.9,
    "single": 354106.3,
-   "prevTtm": 1374328.4
+   "prevTtm": 1374817.2
   },
   {
    "year": 2025,
@@ -413,6 +413,13 @@ window.GDAP_DATA = {
    "cumulative": 695704,
    "single": 361511.1,
    "prevTtm": 1417605.7
+  },
+  {
+   "year": 2026,
+   "q": 3,
+   "cumulative": 1071071,
+   "single": 375367,
+   "prevTtm": 1437721.6
   }
  ],
  "marketCap": [
@@ -718,8 +725,8 @@ window.GDAP_DATA = {
   },
   {
    "quarter": "2026Q4",
-   "date": "2026-10-16",
-   "value": 1052215
+   "date": "2026-10-21",
+   "value": 1048772
   }
  ]
 };
