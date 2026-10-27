@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="基于公开历史行情的定投与纪律卖出模拟器，支持沪深京 A 股、场内基金和场外公募基金。">
+<title>金融纪律模拟器 · GDAP</title>
+<link rel="icon" href="data:,">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="simulator.css">
+</head>
+<body>
+<a class="skip-link" href="#simulationResults">跳到模拟结果</a>
+<header class="topbar">
+  <div class="topbar-inner">
+    <a class="home-link" href="index.html" aria-label="返回巴菲特指标首页">
+      <i data-lucide="arrow-left" aria-hidden="true"></i><span>巴菲特指标</span>
+    </a>
+    <div class="brand">
+      <span class="brand-mark"><i data-lucide="chart-candlestick" aria-hidden="true"></i></span>
+      <div><h1>金融纪律模拟器</h1><p>税费前历史模拟</p></div>
+    </div>
+    <span class="online-label"><span></span>公开数据 · 需联网</span>
+  </div>
+</header>
+
+<div class="workspace">
+  <aside class="config-panel" aria-label="模拟配置">
+    <form id="simulatorForm" novalidate>
+      <section class="config-section product-section">
+        <div class="section-heading"><span>产品</span><span class="section-note">代码 / 名称 / 拼音</span></div>
+        <div class="segmented" role="group" aria-label="产品范围">
+          <button type="button" class="active" data-scope="all" aria-pressed="true">全部</button>
+          <button type="button" data-scope="exchange" aria-pressed="false">股票 / 场内</button>
+          <button type="button" data-scope="otc" aria-pressed="false">场外公募</button>
+        </div>
+        <div class="search-wrap">
+          <i class="search-icon" data-lucide="search" aria-hidden="true"></i>
+          <input id="productSearch" type="search" autocomplete="off" placeholder="如 600519、沪深300、华夏"
+            aria-label="搜索产品" aria-autocomplete="list" aria-controls="searchResults" aria-expanded="false">
+          <button type="button" id="clearSearch" class="icon-button clear-search" title="清空搜索" aria-label="清空搜索" hidden>
+            <i data-lucide="x" aria-hidden="true"></i>
+          </button>
+          <ul id="searchResults" class="search-results" role="listbox" hidden></ul>
+        </div>
+        <div id="searchStatus" class="search-status" aria-live="polite"></div>
+        <div id="selectedProduct" class="selected-product" hidden>
+          <div class="selected-title-row">
+            <div><strong id="selectedName"></strong><span id="selectedCode" class="mono"></span></div>
+            <button type="button" id="reloadHistory" class="icon-button" title="重新加载历史" aria-label="重新加载历史">
+              <i data-lucide="refresh-cw" aria-hidden="true"></i>
+            </button>
+          </div>
+          <div class="product-tags"><span id="selectedType"></span><span id="selectedRule"></span></div>
+          <p id="selectedRuleReason" class="product-meta"></p>
+          <p id="selectedRange" class="product-meta mono"></p>
+        </div>
+      </section>
+
+      <section class="config-section">
+        <div class="section-heading"><span>定投计划</span><span class="section-note" id="endDatePreview"></span></div>
+        <div class="field-grid">
+          <label class="field"><span>单次金额（元）</span><input id="amount" type="number" min="0" step="100" value="1000" inputmode="decimal"></label>
+          <label class="field"><span>每周星期</span><select id="weekday">
+            <option value="1">星期一</option><option value="2">星期二</option><option value="3">星期三</option>
+            <option value="4">星期四</option><option value="5">星期五</option><option value="6">星期六</option><option value="0">星期日</option>
+          </select></label>
+          <label class="field"><span>开始日期</span><input id="startDate" type="date" required></label>
+          <label class="field"><span>持有月数</span><input id="holdingMonths" type="number" min="1" step="1" value="12" inputmode="numeric"></label>
+        </div>
+      </section>
+
+      <section class="config-section discipline-section">
+        <div class="section-heading">
+          <span>卖出纪律</span>
+          <button id="addRule" class="text-button" type="button"><i data-lucide="plus" aria-hidden="true"></i>添加</button>
+        </div>
+        <div id="disciplineList" class="discipline-list"></div>
+      </section>
+
+      <div id="configError" class="form-error" role="alert" hidden></div>
+      <button id="runSimulation" class="primary-button" type="submit" disabled>
+        <i data-lucide="play" aria-hidden="true"></i><span>开始模拟</span>
+      </button>
+      <p class="calculation-note">卖出在下一有效交易日按顺序执行；赎回款不再投入，不计利息。</p>
+    </form>
+  </aside>
+
+  <main id="simulationResults" class="results-panel">
+    <div id="dataAlert" class="data-alert" role="alert" hidden>
+      <i data-lucide="circle-alert" aria-hidden="true"></i><span id="dataAlertText"></span>
+      <button id="retryLoad" type="button" class="text-button">重试</button>
+    </div>
+
+    <section class="chart-section" aria-labelledby="historyTitle">
+      <div class="result-heading">
+        <div><h2 id="historyTitle">历史行情</h2><p id="historySubtitle">尚未加载产品</p></div>
+        <button id="showFullHistory" class="secondary-button" type="button" disabled>
+          <i data-lucide="scan" aria-hidden="true"></i>完整历史
+        </button>
+      </div>
+      <div class="chart-shell">
+        <div id="priceChart" class="price-chart" role="img" aria-label="产品历史价格图表"></div>
+        <div id="priceChartEmpty" class="chart-empty"><i data-lucide="chart-no-axes-combined" aria-hidden="true"></i><span>尚未加载行情</span></div>
+        <div id="chartLoading" class="chart-loading" hidden><span class="spinner"></span><span>正在加载完整历史</span></div>
+      </div>
+    </section>
+
+    <section class="chart-section return-section" aria-labelledby="returnTitle">
+      <div class="result-heading"><div><h2 id="returnTitle">持有收益率</h2><p id="returnSubtitle">当前市值 ÷ 剩余持仓成本 − 1</p></div></div>
+      <div class="chart-shell">
+        <div id="returnChart" class="return-chart" role="img" aria-label="模拟持有收益率曲线"></div>
+        <div id="returnChartEmpty" class="chart-empty compact"><span>暂无模拟结果</span></div>
+      </div>
+    </section>
+
+    <section class="summary-section" aria-labelledby="summaryTitle">
+      <div class="result-heading">
+        <div><h2 id="summaryTitle">收益结果</h2><p id="valuationDate">等待模拟</p></div>
+        <span class="pretax-label">未计费用与税费</span>
+      </div>
+      <div id="summaryGrid" class="summary-grid">
+        <div class="metric"><span>累计投入</span><strong>—</strong></div>
+        <div class="metric"><span>累计赎回</span><strong>—</strong></div>
+        <div class="metric"><span>已实现收益</span><strong>—</strong></div>
+        <div class="metric"><span>最终等效份额</span><strong>—</strong></div>
+        <div class="metric"><span>剩余成本</span><strong>—</strong></div>
+        <div class="metric"><span>最终市值</span><strong>—</strong></div>
+        <div class="metric"><span>持有收益</span><strong>—</strong><small>—</small></div>
+        <div class="metric primary-metric"><span>整体收益（含赎回）</span><strong>—</strong><small>—</small></div>
+      </div>
+    </section>
+
+    <section class="trades-section" aria-labelledby="tradesTitle">
+      <div class="result-heading trades-heading">
+        <div><h2 id="tradesTitle">交易明细</h2><p id="tradeCount">0 笔记录</p></div>
+        <label class="trade-filter"><span class="sr-only">筛选交易</span><select id="tradeFilter">
+          <option value="all">全部记录</option><option value="buy">仅定投</option><option value="sell">仅卖出</option><option value="issue">未完全成交</option>
+        </select></label>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>状态</th><th>类型 / 纪律</th><th>计划 / 触发日</th><th>成交日</th><th class="numeric">价格</th><th class="numeric">等效份额</th><th class="numeric">金额（元）</th><th>未成交原因</th></tr></thead>
+          <tbody id="tradeRows"><tr><td colspan="8" class="empty-cell">暂无交易记录</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</div>
+
+<footer class="page-footer">
+  <p>股票与场内基金采用东方财富后复权日 K；场外公募按每日净值回报构建分红再投资复权净值。允许小数等效份额，不等同于实际交割份额。</p>
+  <p>历史回测不代表未来表现，不构成投资建议。公开第三方接口可能调整或不可用，本页不会伪造缺失数据。</p>
+</footer>
+
+<script src="engine.js"></script>
+<script src="market-data.js"></script>
+<script src="simulator.js"></script>
+<script async src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js" onload="window.dispatchEvent(new Event('charts-ready'))"></script>
+<script async src="https://cdn.jsdelivr.net/npm/lucide@0.468.0/dist/umd/lucide.min.js" onload="window.dispatchEvent(new Event('lucide-ready'))"></script>
+</body>
+</html>
