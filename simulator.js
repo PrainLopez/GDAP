@@ -15,7 +15,12 @@
     priceChart: null,
     returnChart: null,
     ruleSequence: 0,
-    rules: [{ id: 'D1', direction: 'up', threshold: '10', sellPercent: '50' }]
+    rules: [
+      { id: 'D1', direction: 'down', threshold: '-25', sellPercent: '50' },
+      { id: 'D2', direction: 'down', threshold: '-40', sellPercent: '50' },
+      { id: 'D3', direction: 'up', threshold: '75', sellPercent: '50' },
+      { id: 'D4', direction: 'up', threshold: '120', sellPercent: '50' }
+    ]
   };
   state.ruleSequence = 1;
 
