@@ -214,6 +214,96 @@
     return quotes;
   }
 
+  function fetchJSON(url, timeout) {
+    return new Promise(function (resolve, reject) {
+      var controller = typeof AbortController === 'function' ? new AbortController() : null;
+      var timer = setTimeout(function () {
+        if (controller) controller.abort();
+        reject(new DataError('备用行情接口响应超时', 'TIMEOUT'));
+      }, timeout || 20000);
+      fetch(url, controller ? { signal: controller.signal } : undefined).then(function (response) {
+        if (!response.ok) {
+          throw new DataError('备用行情接口返回 ' + response.status, 'NETWORK');
+        }
+        return response.json();
+      }).then(function (payload) {
+        clearTimeout(timer);
+        resolve(payload);
+      }).catch(function (error) {
+        clearTimeout(timer);
+        reject(error instanceof DataError ? error : new DataError('备用行情接口加载失败，请检查网络或拦截设置', 'NETWORK'));
+      });
+    });
+  }
+
+  function parseTencentKlines(payload, symbol) {
+    var rows = payload && payload.data && payload.data[symbol];
+    rows = rows && (rows.qfqday || rows.day);
+    if (!Array.isArray(rows)) return [];
+    return rows.map(function (cells) {
+      return {
+        date: cells[0],
+        open: Number(cells[1]),
+        close: Number(cells[2]),
+        high: Number(cells[3]),
+        low: Number(cells[4])
+      };
+    }).filter(function (quote) {
+      return /^\d{4}-\d{2}-\d{2}$/.test(quote.date) &&
+        ['open', 'high', 'low', 'close'].every(function (key) {
+          return Number.isFinite(quote[key]) && quote[key] > 0;
+        });
+    });
+  }
+
+  function addCalendarDays(value, days) {
+    var parts = value.split('-').map(Number);
+    return new Date(Date.UTC(parts[0], parts[1] - 1, parts[2] + days)).toISOString().slice(0, 10);
+  }
+
+  function loadTencentHistory(product) {
+    if (!product.quoteId) {
+      return Promise.reject(new DataError('当前产品缺少交易所代码，不支持备用日 K 接口', 'NO_HISTORY'));
+    }
+    var symbol = (product.quoteId.charAt(0) === '1' ? 'sh' : 'sz') + product.code;
+    var byDate = Object.create(null);
+    var nextEnd = '2030-01-01';
+    var previousEnd = '';
+    var pageCount = 0;
+
+    function mergeQuotes() {
+      return Object.keys(byDate).sort().map(function (date) { return byDate[date]; });
+    }
+
+    function nextPage() {
+      if (pageCount >= 25) return mergeQuotes();
+      pageCount += 1;
+      var url = 'https://web.ifzq.gtimg.cn/appstock/app/fqkline/get?param=' + symbol +
+        ',day,1990-01-01,' + nextEnd + ',1000,qfq';
+      return fetchJSON(url).then(function (payload) {
+        var quotes = parseTencentKlines(payload, symbol);
+        var before = Object.keys(byDate).length;
+        quotes.forEach(function (quote) {
+          byDate[quote.date] = quote;
+        });
+        var earliest = quotes.length ? quotes[0].date : '';
+        if (!quotes.length || Object.keys(byDate).length === before) return mergeQuotes();
+        nextEnd = addCalendarDays(earliest, -1);
+        if (nextEnd === previousEnd) return mergeQuotes();
+        previousEnd = nextEnd;
+        return nextPage();
+      });
+    }
+
+    return nextPage().then(function (quotes) {
+      if (!quotes.length) throw new DataError('备用接口没有该产品日 K 历史', 'NO_HISTORY');
+      return quotes;
+    }).catch(function (error) {
+      throw new DataError('东财历史接口失败，备用接口(' + symbol + ')读取失败：' +
+        (error.message || '未知错误'), error.code || 'NETWORK');
+    });
+  }
+
   function loadExchangeHistory(product) {
     var lastError;
     var chain = Promise.resolve(null);
@@ -237,10 +327,11 @@
       });
     });
     return chain.then(function (quotes) {
-      if (!quotes) {
-        throw lastError || new DataError('历史行情加载失败，请稍后重试', 'NETWORK');
-      }
-      return quotes;
+      if (quotes) return quotes;
+      return loadTencentHistory(product).catch(function (fallbackError) {
+        throw new DataError('东财历史接口失败，备用接口读取失败：' + fallbackError.message,
+          fallbackError.code || 'NETWORK');
+      });
     });
   }
 
