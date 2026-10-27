@@ -1,0 +1,78 @@
+:root {
+  --nav-height: 58px;
+}
+
+.app-nav {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  height: var(--nav-height);
+  background: #fff;
+  border-bottom: 1px solid #e1e4e8;
+}
+
+.app-nav-inner {
+  max-width: 1520px;
+  height: 100%;
+  margin: 0 auto;
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
+.app-nav-brand {
+  color: #1f2328;
+  font-size: 16px;
+  font-weight: 650;
+  text-decoration: none;
+}
+
+.app-nav-links {
+  align-self: stretch;
+  display: flex;
+  align-items: stretch;
+  gap: 24px;
+}
+
+.app-nav-link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  color: #6a737d;
+  font-size: 13px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.app-nav-link:hover {
+  color: #0969da;
+}
+
+.app-nav-link[aria-current="page"] {
+  color: #0969da;
+  font-weight: 600;
+}
+
+.app-nav-link[aria-current="page"]::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  background: #0969da;
+}
+
+.app-nav-link:focus-visible,
+.app-nav-brand:focus-visible {
+  outline: 2px solid #0969da;
+  outline-offset: 4px;
+}
+
+@media (max-width: 520px) {
+  .app-nav-inner { padding: 0 16px; gap: 22px; }
+  .app-nav-links { gap: 16px; }
+  .app-nav-brand { font-size: 15px; }
+  .app-nav-link { font-size: 12px; }
+}

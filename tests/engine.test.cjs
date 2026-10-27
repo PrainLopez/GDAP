@@ -117,6 +117,36 @@ test('同日多条纪律统一判定，按排序依次计算剩余份额', () =>
   assert.deepEqual(sells.map((trade) => trade.disciplineId), ['first', 'second']);
 });
 
+test('五条纪律同日触发时全部按顺序执行并记录持仓成本', () => {
+  const result = Engine.simulate(quotes([
+    ['2024-01-01', 100], ['2024-01-02', 120], ['2024-01-03', 120], ['2024-03-01', 100]
+  ]), product(), config({ disciplines: [5, 10, 15, 18, 19].map((threshold, index) => ({
+    id: `D${index + 1}`, direction: 'up', threshold, sellPercent: 10
+  })) }));
+  const sells = filled(result, 'sell');
+  assert.equal(sells.length, 5);
+  assert.deepEqual(sells.map((trade) => trade.disciplineId), ['D1', 'D2', 'D3', 'D4', 'D5']);
+  assert.ok(Math.abs(sells[0].costBefore - 100) < 1e-12);
+  assert.ok(Math.abs(sells[0].costRemoved - 10) < 1e-12);
+  assert.ok(Math.abs(sells[0].remainingCost - 90) < 1e-12);
+  assert.ok(Math.abs(sells[4].costBefore - 65.61) < 1e-12);
+  assert.ok(Math.abs(sells[4].remainingCost - 59.049) < 1e-12);
+});
+
+test('卖出记录包含卖出时的每份额移动平均成本', () => {
+  const result = Engine.simulate(quotes([
+    ['2024-01-01', 100], ['2024-01-02', 100], ['2024-01-08', 50],
+    ['2024-01-09', 130], ['2024-01-10', 130], ['2024-03-01', 100]
+  ]), product(), config({
+    disciplines: [{ direction: 'up', threshold: 5, sellPercent: 50 }]
+  }));
+  const sell = filled(result, 'sell')[0];
+  assert.equal(sell.date, '2024-01-10');
+  assert.ok(Math.abs(sell.costBefore - 200) < 1e-12);
+  assert.ok(Math.abs(sell.costPerShare - 200 / 3) < 1e-12);
+  assert.ok(Math.abs(sell.costRemoved - 100) < 1e-12);
+});
+
 for (const [lag, expectedStatus] of [[0, 'filled'], [1, 'filled'], [2, 'partial']]) {
   test(`T+${lag} 控制可卖份额，锁定期未成交部分不补单`, () => {
     const result = Engine.simulate(quotes([
@@ -198,6 +228,21 @@ test('移动平均成本及收益恒等关系成立', () => {
   assert.ok(Math.abs(s.totalProfit - (s.marketValue + s.redeemed - s.invested)) < 1e-8);
   assert.ok(Math.abs(s.holdingReturn - (s.marketValue / s.remainingCost - 1)) < 1e-8);
   assert.ok(Math.abs(s.totalReturn - s.totalProfit / s.invested) < 1e-8);
+  assert.ok(Math.abs(s.realizedReturn - s.realizedProfit / realizedCost) < 1e-8);
+  const years = 8 / 365;
+  assert.ok(Math.abs(s.realizedAnnualizedReturn - (Math.pow(1 + s.realizedReturn, 1 / years) - 1)) < 1e-8);
+  assert.ok(Math.abs(s.holdingAnnualizedReturn - (Math.pow(1 + s.holdingReturn, 1 / years) - 1)) < 1e-8);
+  assert.ok(Math.abs(s.totalAnnualizedReturn - (Math.pow(1 + s.totalReturn, 1 / years) - 1)) < 1e-8);
+});
+
+test('没有卖出或持仓时不伪造收益率和年化收益率', () => {
+  const result = Engine.simulate(quotes([
+    ['2024-01-01', 100], ['2024-01-02', 100], ['2024-03-01', 100]
+  ]), product(), config());
+  assert.equal(result.summary.realizedReturn, null);
+  assert.equal(result.summary.realizedAnnualizedReturn, null);
+  assert.ok(Number.isFinite(result.summary.holdingAnnualizedReturn));
+  assert.ok(Number.isFinite(result.summary.totalAnnualizedReturn));
 });
 
 test('期末触发卖单不越界成交并记录原因', () => {

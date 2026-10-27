@@ -4,9 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>A股总市值 vs GDP · 巴菲特指标</title>
-<script src="https://cdn.jsdelivr.net/npm/react@18.3.1/umd/react.production.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/react-charts@3.0.0-beta.57/dist/react-charts.production.min.js"></script>
+<script src="https://registry.npmmirror.com/react/18.3.1/files/umd/react.production.min.js"></script>
+<script src="https://registry.npmmirror.com/react-dom/18.3.1/files/umd/react-dom.production.min.js"></script>
+<script src="vendor/react-charts.production.min.js"></script>
+<link rel="stylesheet" href="app-nav.css">
 <style>
   :root {
     --ink: #1f2328;
@@ -22,9 +23,6 @@
   }
   .wrap { max-width: 1080px; margin: 0 auto; padding: 24px 16px 48px; }
   h1 { font-size: 20px; font-weight: 600; }
-  .header-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-  .simulator-link { flex: none; padding: 7px 11px; border: 1px solid #c5cec8; border-radius: 6px; background: #fff; color: #0969da; font-size: 13px; text-decoration: none; }
-  .simulator-link:hover { border-color: #0969da; }
   .sub { color: var(--sub); font-size: 13px; margin-top: 6px; }
   .stats {
     display: grid;
@@ -88,16 +86,21 @@
   .hint code { background: #eff1f3; padding: 1px 5px; border-radius: 4px; }
   footer { color: var(--sub); font-size: 12px; line-height: 1.8; }
   @media (max-width: 640px) { .chart { height: 320px; } }
-  @media (max-width: 520px) { .header-row { display: block; } .simulator-link { display: inline-block; margin-top: 12px; } }
 </style>
 </head>
 <body>
+<nav class="app-nav" aria-label="主导航">
+  <div class="app-nav-inner">
+    <a class="app-nav-brand" href="index.html">GDAP</a>
+    <div class="app-nav-links">
+      <a class="app-nav-link" href="index.html" aria-current="page">巴菲特指标</a>
+      <a class="app-nav-link" href="simulator.html">纪律模拟器</a>
+    </div>
+  </div>
+</nav>
 <div class="wrap">
   <header>
-    <div class="header-row">
-      <h1>A股总市值 vs 国内生产总值（GDP）</h1>
-      <a class="simulator-link" href="simulator.html">打开金融纪律模拟器</a>
-    </div>
+    <h1>A股总市值 vs 国内生产总值（GDP）</h1>
     <div class="sub">总市值：通达信 880001 季度末收盘点位（×100 = 总市值，亿元） · GDP：之前四个季度单季 GDP 之和 · 比值即"巴菲特指标"</div>
   </header>
 

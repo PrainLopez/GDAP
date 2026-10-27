@@ -14,6 +14,9 @@
     searchTimer: null,
     priceChart: null,
     returnChart: null,
+    simulationWorker: null,
+    running: false,
+    runSequence: 0,
     ruleSequence: 0,
     rules: [
       { id: 'D1', direction: 'down', threshold: '-25', sellPercent: '50' },
@@ -22,7 +25,9 @@
       { id: 'D4', direction: 'up', threshold: '120', sellPercent: '50' }
     ]
   };
-  state.ruleSequence = 1;
+  state.ruleSequence = state.rules.reduce(function (max, rule) {
+    return Math.max(max, Number(rule.id.slice(1)) || 0);
+  }, 0);
 
   var numberFormatter = new Intl.NumberFormat('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   var shareFormatter = new Intl.NumberFormat('zh-CN', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
@@ -122,6 +127,7 @@
 
   function selectProduct(product) {
     if (!product) return;
+    cancelSimulation();
     state.product = product;
     state.quotes = [];
     state.result = null;
@@ -155,15 +161,10 @@
     $('startDate').max = last;
     var current = $('startDate').value;
     if (reset || !current || current < first || current > last) {
-      var start = window.DisciplineEngine.addMonths(last, -36);
-      if (start < first) start = first;
       var months = numericValue($('holdingMonths').value);
-      if (!Number.isInteger(months) || months <= 0 || window.DisciplineEngine.addMonths(start, months) > last) {
-        start = first;
-      }
-      if (window.DisciplineEngine.addMonths(start, 12) > last && months >= 12) {
-        $('holdingMonths').value = '1';
-      }
+      if (!Number.isInteger(months) || months <= 0) months = 36;
+      var start = window.DisciplineEngine.addMonths(last, -months);
+      if (start < first) start = first;
       $('startDate').value = start;
     }
     updateEndDate();
@@ -188,6 +189,7 @@
 
   function loadHistory(resetDates) {
     if (!state.product) return;
+    cancelSimulation();
     var product = state.product;
     var token = ++state.loadToken;
     state.quotes = [];
@@ -195,7 +197,7 @@
     $('dataAlert').hidden = true;
     $('chartLoading').hidden = false;
     $('priceChartEmpty').hidden = true;
-    $('runSimulation').disabled = true;
+    syncRunButton();
     $('reloadHistory').disabled = true;
     $('showFullHistory').disabled = true;
     $('historySubtitle').textContent = product.type === 'otc-fund' ? '正在读取历史净值' : '正在读取后复权日 K';
@@ -209,7 +211,7 @@
       $('selectedRange').textContent = quotes[0].date + ' 至 ' + quotes[quotes.length - 1].date +
         ' · ' + quotes.length + ' 个行情日';
       setDefaultDates(resetDates);
-      $('runSimulation').disabled = false;
+      syncRunButton();
       $('showFullHistory').disabled = false;
       renderPriceChart(false);
     }).catch(function (error) {
@@ -267,6 +269,54 @@
     };
   }
 
+  function syncRunButton() {
+    $('runDock').hidden = !state.quotes.length;
+    $('runSimulation').disabled = !state.quotes.length || state.running;
+  }
+
+  function setRunning(running) {
+    state.running = running;
+    $('runSimulation').classList.toggle('running', running);
+    $('runSimulation').setAttribute('aria-busy', String(running));
+    $('runSimulation').innerHTML = running ?
+      '<span class="spinner" aria-hidden="true"></span><span>正在模拟…</span>' :
+      '<i data-lucide="play" aria-hidden="true"></i><span>开始模拟</span>';
+    syncRunButton();
+    refreshIcons();
+  }
+
+  function cancelSimulation() {
+    state.runSequence += 1;
+    if (state.simulationWorker) state.simulationWorker.terminate();
+    state.simulationWorker = null;
+    if (state.running) setRunning(false);
+  }
+
+  function finishSimulation(id, result, error) {
+    if (id !== state.runSequence) return;
+    setRunning(false);
+    if (error) {
+      state.result = null;
+      renderReturnChart();
+      renderSummary();
+      renderTrades();
+      renderPriceChart(false);
+      $('configError').textContent = error.message || '计算失败，请检查配置';
+      $('configError').hidden = false;
+      var field = error.field && $(error.field);
+      if (field) {
+        field.classList.add('invalid');
+        field.focus();
+      }
+      return;
+    }
+    state.result = result;
+    renderPriceChart(true);
+    renderReturnChart();
+    renderSummary();
+    renderTrades();
+  }
+
   function quoteIndex(date) {
     var low = 0;
     var high = state.quotes.length;
@@ -302,10 +352,11 @@
         return trade.type === 'sell' && trade.date === date && (trade.status === 'filled' || trade.status === 'partial');
       });
       sells.forEach(function (trade) {
-        html += '<div style="border-top:1px solid #e3e7e5;margin-top:5px;padding-top:5px">' +
+      html += '<div style="border-top:1px solid #e1e4e8;margin-top:5px;padding-top:5px">' +
           '<strong>卖出成交 · ' + escapeHTML(tradeDescription(trade)) + '</strong>' +
           '<div>触发日 ' + trade.triggerDate + '　成交日 ' + trade.date + '</div>' +
-          '<div>价格 ' + formatNumber(trade.price) + '　份额 ' + shareFormatter.format(trade.shares) + '</div></div>';
+          '<div>价格 ' + formatNumber(trade.price) + '　份额 ' + shareFormatter.format(trade.shares) + '</div>' +
+          '<div>每份额持仓成本 ' + formatNumber(trade.costPerShare) + ' 元</div></div>';
       });
     }
     return html + '</div>';
@@ -339,21 +390,21 @@
     });
     var series = isFund ? {
       name: '复权净值', type: 'line', data: state.quotes.map(function (quote) { return quote.close; }),
-      showSymbol: false, lineStyle: { width: 1.5, color: '#087f6c' }, itemStyle: { color: '#087f6c' }
+      showSymbol: false, lineStyle: { width: 1.5, color: '#0969da' }, itemStyle: { color: '#0969da' }
     } : {
       name: '后复权日 K', type: 'candlestick',
       data: state.quotes.map(function (quote) { return [quote.open, quote.close, quote.low, quote.high]; }),
-      itemStyle: { color: '#d96a60', color0: '#15937d', borderColor: '#b84a42', borderColor0: '#087f6c' }
+      itemStyle: { color: '#cf222e', color0: '#2da44e', borderColor: '#cf222e', borderColor0: '#1a7f37' }
     };
     series.markPoint = {
       symbol: 'pin', symbolSize: 42,
-      itemStyle: { color: '#b84a42' },
+      itemStyle: { color: '#bf3989' },
       label: { color: '#fff', fontSize: 10, formatter: function (point) { return point.data.count > 1 ? '卖' + point.data.count : '卖'; } },
       data: marks
     };
     if (state.result) {
       series.markArea = {
-        silent: true, itemStyle: { color: 'rgba(8,127,108,0.045)' },
+        silent: true, itemStyle: { color: 'rgba(9,105,218,0.045)' },
         data: [[{ xAxis: state.result.daily[0].date }, { xAxis: state.result.summary.valuationDate }]]
       };
     }
@@ -363,14 +414,14 @@
 
     state.priceChart.setOption({
       animation: false,
-      textStyle: { fontFamily: 'IBM Plex Sans, PingFang SC, sans-serif', color: '#66736d' },
+      textStyle: { fontFamily: '-apple-system, PingFang SC, Microsoft YaHei, sans-serif', color: '#6a737d' },
       grid: { left: 62, right: 22, top: 25, bottom: 74 },
       tooltip: { trigger: 'axis', axisPointer: { type: 'cross' }, confine: true, formatter: priceTooltip },
-      xAxis: { type: 'category', data: dates, boundaryGap: !isFund, axisLine: { lineStyle: { color: '#c5cec8' } }, axisLabel: { hideOverlap: true } },
-      yAxis: { type: 'value', scale: true, position: 'left', splitLine: { lineStyle: { color: '#edf0ee' } }, axisLabel: { formatter: function (value) { return numberFormatter.format(value); } } },
+      xAxis: { type: 'category', data: dates, boundaryGap: !isFund, axisLine: { lineStyle: { color: '#d0d7de' } }, axisLabel: { hideOverlap: true } },
+      yAxis: { type: 'value', scale: true, position: 'left', splitLine: { lineStyle: { color: '#eaeef2' } }, axisLabel: { formatter: function (value) { return numberFormatter.format(value); } } },
       dataZoom: [
         { type: 'inside', start: 0, end: 100, minValueSpan: 5 },
-        { type: 'slider', start: 0, end: 100, height: 20, bottom: 18, borderColor: '#dce2de', fillerColor: 'rgba(8,127,108,.12)', handleStyle: { color: '#087f6c' }, dataBackground: { lineStyle: { color: '#aab6af' }, areaStyle: { color: '#edf0ee' } }, textStyle: { fontSize: 10 } }
+        { type: 'slider', start: 0, end: 100, height: 20, bottom: 18, borderColor: '#e1e4e8', fillerColor: 'rgba(9,105,218,.12)', handleStyle: { color: '#0969da' }, dataBackground: { lineStyle: { color: '#8c959f' }, areaStyle: { color: '#eaeef2' } }, textStyle: { fontSize: 10 } }
       ],
       series: [series]
     }, true);
@@ -405,7 +456,7 @@
     $('returnSubtitle').textContent = state.result.config.startDate + ' 至 ' + state.result.summary.valuationDate + ' · 空仓区间留空';
     state.returnChart.setOption({
       animation: false,
-      textStyle: { fontFamily: 'IBM Plex Sans, PingFang SC, sans-serif', color: '#66736d' },
+      textStyle: { fontFamily: '-apple-system, PingFang SC, Microsoft YaHei, sans-serif', color: '#6a737d' },
       grid: { left: 62, right: 22, top: 22, bottom: 58 },
       tooltip: {
         trigger: 'axis', confine: true,
@@ -418,14 +469,14 @@
             '剩余成本：' + formatNumber(day.remainingCost) + ' 元';
         }
       },
-      xAxis: { type: 'category', data: daily.map(function (day) { return day.date; }), boundaryGap: false, axisLine: { lineStyle: { color: '#c5cec8' } }, axisLabel: { hideOverlap: true } },
-      yAxis: { type: 'value', scale: true, splitLine: { lineStyle: { color: '#edf0ee' } }, axisLabel: { formatter: function (value) { return numberFormatter.format(value * 100) + '%'; } } },
-      dataZoom: [{ type: 'inside', start: 0, end: 100 }, { type: 'slider', start: 0, end: 100, height: 14, bottom: 12, borderColor: '#dce2de', fillerColor: 'rgba(8,127,108,.12)', textStyle: { fontSize: 9 } }],
+      xAxis: { type: 'category', data: daily.map(function (day) { return day.date; }), boundaryGap: false, axisLine: { lineStyle: { color: '#d0d7de' } }, axisLabel: { hideOverlap: true } },
+      yAxis: { type: 'value', scale: true, splitLine: { lineStyle: { color: '#eaeef2' } }, axisLabel: { formatter: function (value) { return numberFormatter.format(value * 100) + '%'; } } },
+      dataZoom: [{ type: 'inside', start: 0, end: 100 }, { type: 'slider', start: 0, end: 100, height: 14, bottom: 12, borderColor: '#e1e4e8', fillerColor: 'rgba(9,105,218,.12)', textStyle: { fontSize: 9 } }],
       series: [{
         name: '持有收益率', type: 'line', data: daily.map(function (day) { return day.holdingReturn; }),
-        showSymbol: false, connectNulls: false, lineStyle: { width: 1.7, color: '#087f6c' },
-        itemStyle: { color: '#087f6c' }, areaStyle: { color: 'rgba(8,127,108,.07)' },
-        markLine: { silent: true, symbol: 'none', label: { show: false }, lineStyle: { color: '#aab6af', type: 'dashed' }, data: [{ yAxis: 0 }] }
+        showSymbol: false, connectNulls: false, lineStyle: { width: 1.7, color: '#0969da' },
+        itemStyle: { color: '#0969da' }, areaStyle: { color: 'rgba(9,105,218,.07)' },
+        markLine: { silent: true, symbol: 'none', label: { show: false }, lineStyle: { color: '#8c959f', type: 'dashed' }, data: [{ yAxis: 0 }] }
       }]
     }, true);
     state.returnChart.dispatchAction({ type: 'dataZoom', start: 0, end: 100 });
@@ -438,13 +489,17 @@
       (subvalue ? '<small class="' + (signed ? valueClass(subvalue.raw) : '') + '">' + subvalue.text + '</small>' : '') + '</div>';
   }
 
+  function rateDetail(rate, annualized) {
+    return '收益率 ' + formatPercent(rate, true) + ' · 年化 ' + formatPercent(annualized, true);
+  }
+
   function renderSummary() {
     if (!state.result) {
       $('valuationDate').textContent = '等待模拟';
       $('summaryGrid').innerHTML = [
         '<div class="metric"><span>累计投入</span><strong>—</strong></div>',
         '<div class="metric"><span>累计赎回</span><strong>—</strong></div>',
-        '<div class="metric"><span>已实现收益</span><strong>—</strong></div>',
+        '<div class="metric"><span>已实现收益</span><strong>—</strong><small>—</small></div>',
         '<div class="metric"><span>最终等效份额</span><strong>—</strong></div>',
         '<div class="metric"><span>剩余成本</span><strong>—</strong></div>',
         '<div class="metric"><span>最终市值</span><strong>—</strong></div>',
@@ -458,12 +513,13 @@
     $('summaryGrid').innerHTML =
       metric('累计投入（元）', { text: formatNumber(summary.invested), raw: summary.invested }) +
       metric('累计赎回（元）', { text: formatNumber(summary.redeemed), raw: summary.redeemed }) +
-      metric('已实现收益（元）', { text: formatNumber(summary.realizedProfit, true), raw: summary.realizedProfit }, null, true) +
+      metric('已实现收益（元）', { text: formatNumber(summary.realizedProfit, true), raw: summary.realizedProfit },
+        { text: rateDetail(summary.realizedReturn, summary.realizedAnnualizedReturn), raw: summary.realizedReturn }, true) +
       metric('最终等效份额', { text: Number.isFinite(summary.shares) ? shareFormatter.format(summary.shares) : '—', raw: summary.shares }) +
       metric('剩余成本（元）', { text: formatNumber(summary.remainingCost), raw: summary.remainingCost }) +
       metric('最终市值（元）', { text: formatNumber(summary.marketValue), raw: summary.marketValue }) +
-      '<div class="metric"><span>持有收益</span><strong class="' + valueClass(summary.holdingProfit) + '">' + formatNumber(summary.holdingProfit, true) + '</strong><small>' + formatPercent(summary.holdingReturn, true) + '</small></div>' +
-      '<div class="metric primary-metric"><span>整体收益（含赎回）</span><strong class="' + valueClass(summary.totalProfit) + '">' + formatNumber(summary.totalProfit, true) + '</strong><small>' + formatPercent(summary.totalReturn, true) + '</small></div>';
+      '<div class="metric"><span>持有收益</span><strong class="' + valueClass(summary.holdingProfit) + '">' + formatNumber(summary.holdingProfit, true) + '</strong><small>' + rateDetail(summary.holdingReturn, summary.holdingAnnualizedReturn) + '</small></div>' +
+      '<div class="metric primary-metric"><span>整体收益（含赎回）</span><strong class="' + valueClass(summary.totalProfit) + '">' + formatNumber(summary.totalProfit, true) + '</strong><small>' + rateDetail(summary.totalReturn, summary.totalAnnualizedReturn) + '</small></div>';
   }
 
   function renderTrades() {
@@ -504,6 +560,7 @@
 
   function runSimulation(event) {
     event.preventDefault();
+    if (state.running) return;
     $('configError').hidden = true;
     Array.prototype.forEach.call(document.querySelectorAll('.invalid'), function (field) { field.classList.remove('invalid'); });
     if (!state.product || !state.quotes.length) {
@@ -511,25 +568,25 @@
       $('configError').hidden = false;
       return;
     }
+    var id = ++state.runSequence;
+    setRunning(true);
     try {
-      state.result = window.DisciplineEngine.simulate(state.quotes, state.product, readConfig());
-      renderPriceChart(true);
-      renderReturnChart();
-      renderSummary();
-      renderTrades();
-    } catch (error) {
-      state.result = null;
-      renderReturnChart();
-      renderSummary();
-      renderTrades();
-      renderPriceChart(false);
-      $('configError').textContent = error.message || '计算失败，请检查配置';
-      $('configError').hidden = false;
-      var field = error.field && $(error.field);
-      if (field) {
-        field.classList.add('invalid');
-        field.focus();
+      if (!state.simulationWorker) {
+        state.simulationWorker = new Worker('simulation-worker.js');
+        state.simulationWorker.onmessage = function (message) {
+          finishSimulation(message.data.id, message.data.result, message.data.error);
+        };
+        state.simulationWorker.onerror = function () {
+          cancelSimulation();
+          finishSimulation(state.runSequence, null, { message: '计算线程启动失败，请通过本地 HTTP 服务打开页面后重试' });
+        };
       }
+      state.simulationWorker.postMessage({
+        id: id, quotes: state.quotes, product: state.product, config: readConfig()
+      });
+    } catch (error) {
+      cancelSimulation();
+      finishSimulation(state.runSequence, null, { message: error.message || '计算线程启动失败，请重试' });
     }
   }
 
@@ -619,7 +676,8 @@
     }
   });
 
-  $('simulatorForm').addEventListener('submit', runSimulation);
+  $('simulatorForm').addEventListener('submit', function (event) { event.preventDefault(); });
+  $('runSimulation').addEventListener('click', runSimulation);
   $('simulatorForm').addEventListener('input', function (event) {
     event.target.classList.remove('invalid');
     $('configError').hidden = true;

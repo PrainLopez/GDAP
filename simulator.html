@@ -6,29 +6,25 @@
 <meta name="description" content="基于公开历史行情的定投与纪律卖出模拟器，支持沪深京 A 股、场内基金和场外公募基金。">
 <title>金融纪律模拟器 · GDAP</title>
 <link rel="icon" href="data:,">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app-nav.css">
 <link rel="stylesheet" href="simulator.css">
 </head>
 <body>
 <a class="skip-link" href="#simulationResults">跳到模拟结果</a>
-<header class="topbar">
-  <div class="topbar-inner">
-    <a class="home-link" href="index.html" aria-label="返回巴菲特指标首页">
-      <i data-lucide="arrow-left" aria-hidden="true"></i><span>巴菲特指标</span>
-    </a>
-    <div class="brand">
-      <span class="brand-mark"><i data-lucide="chart-candlestick" aria-hidden="true"></i></span>
-      <div><h1>金融纪律模拟器</h1><p>税费前历史模拟</p></div>
+<nav class="app-nav" aria-label="主导航">
+  <div class="app-nav-inner">
+    <a class="app-nav-brand" href="index.html">GDAP</a>
+    <div class="app-nav-links">
+      <a class="app-nav-link" href="index.html">巴菲特指标</a>
+      <a class="app-nav-link" href="simulator.html" aria-current="page">纪律模拟器</a>
     </div>
-    <span class="online-label"><span></span>公开数据 · 需联网</span>
   </div>
-</header>
+</nav>
 
 <div class="workspace">
   <aside class="config-panel" aria-label="模拟配置">
     <form id="simulatorForm" novalidate>
+      <div class="config-fields">
       <section class="config-section product-section">
         <div class="section-heading"><span>产品</span><span class="section-note">代码 / 名称 / 拼音</span></div>
         <div class="segmented" role="group" aria-label="产品范围">
@@ -68,7 +64,7 @@
             <option value="4">星期四</option><option value="5">星期五</option><option value="6">星期六</option><option value="0">星期日</option>
           </select></label>
           <label class="field"><span>开始日期</span><input id="startDate" type="date" required></label>
-          <label class="field"><span>持有月数</span><input id="holdingMonths" type="number" min="1" step="1" value="12" inputmode="numeric"></label>
+          <label class="field"><span>持有月数</span><input id="holdingMonths" type="number" min="1" step="1" value="36" inputmode="numeric"></label>
         </div>
       </section>
 
@@ -80,11 +76,14 @@
         <div id="disciplineList" class="discipline-list"></div>
       </section>
 
-      <div id="configError" class="form-error" role="alert" hidden></div>
-      <button id="runSimulation" class="primary-button" type="submit" disabled>
-        <i data-lucide="play" aria-hidden="true"></i><span>开始模拟</span>
-      </button>
-      <p class="calculation-note">卖出在下一有效交易日按顺序执行；赎回款不再投入，不计利息。</p>
+      </div>
+      <div id="runDock" class="run-dock" hidden>
+        <div id="configError" class="form-error" role="alert" hidden></div>
+        <button id="runSimulation" class="primary-button" type="button" disabled>
+          <i data-lucide="play" aria-hidden="true"></i><span>开始模拟</span>
+        </button>
+        <p class="calculation-note">卖出在下一有效交易日按顺序执行；赎回款不再投入，不计利息。</p>
+      </div>
     </form>
   </aside>
 
@@ -124,7 +123,7 @@
       <div id="summaryGrid" class="summary-grid">
         <div class="metric"><span>累计投入</span><strong>—</strong></div>
         <div class="metric"><span>累计赎回</span><strong>—</strong></div>
-        <div class="metric"><span>已实现收益</span><strong>—</strong></div>
+        <div class="metric"><span>已实现收益</span><strong>—</strong><small>—</small></div>
         <div class="metric"><span>最终等效份额</span><strong>—</strong></div>
         <div class="metric"><span>剩余成本</span><strong>—</strong></div>
         <div class="metric"><span>最终市值</span><strong>—</strong></div>
@@ -158,7 +157,7 @@
 <script src="engine.js"></script>
 <script src="market-data.js"></script>
 <script src="simulator.js"></script>
-<script async src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js" onload="window.dispatchEvent(new Event('charts-ready'))"></script>
-<script async src="https://cdn.jsdelivr.net/npm/lucide@0.468.0/dist/umd/lucide.min.js" onload="window.dispatchEvent(new Event('lucide-ready'))"></script>
+<script async src="https://registry.npmmirror.com/echarts/5.5.1/files/dist/echarts.min.js" onload="window.dispatchEvent(new Event('charts-ready'))"></script>
+<script async src="https://registry.npmmirror.com/lucide/0.468.0/files/dist/umd/lucide.min.js" onload="window.dispatchEvent(new Event('lucide-ready'))"></script>
 </body>
 </html>

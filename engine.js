@@ -45,6 +45,16 @@
     )));
   }
 
+  function annualizedReturn(value, startDate, endDate) {
+    if (!Number.isFinite(value)) return null;
+    var start = dateParts(startDate);
+    var end = dateParts(endDate);
+    if (!start || !end) return null;
+    var days = (Date.UTC(end[0], end[1] - 1, end[2]) - Date.UTC(start[0], start[1] - 1, start[2])) / 86400000;
+    if (days <= 0) return null;
+    return Math.pow(1 + value, 365 / days) - 1;
+  }
+
   function lowerBound(values, target) {
     var low = 0;
     var high = values.length;
@@ -169,18 +179,21 @@
     });
 
     function recordSell(order, quote, status, shares, amount, reason, desired, available) {
-      trades.push({
+      var trade = {
         id: 'T' + (++tradeSequence), type: 'sell', status: status,
         disciplineId: order.disciplineId, disciplineOrder: order.disciplineOrder,
         direction: order.direction, threshold: order.threshold, sellPercent: order.sellPercent,
         triggerDate: order.triggerDate, date: quote ? quote.date : null,
         price: quote ? quote.close : null, shares: shares, amount: amount,
         requestedShares: desired, availableShares: available, reason: reason || ''
-      });
+      };
+      trades.push(trade);
+      return trade;
     }
 
     function executeSell(order, quote, quoteIndex) {
       var beforeShares = state.shares;
+      var beforeCost = state.cost;
       var desired = beforeShares * order.sellPercent / 100;
       var available = lots.reduce(function (sum, lot) {
         return sum + (lot.availableIndex <= quoteIndex ? lot.shares : 0);
@@ -216,8 +229,12 @@
       }
       var unfilled = desired - shares;
       var partial = unfilled > EPSILON;
-      recordSell(order, quote, partial ? 'partial' : 'filled', shares, amount,
+      var recorded = recordSell(order, quote, partial ? 'partial' : 'filled', shares, amount,
         partial ? '可卖份额不足，未成交 ' + unfilled + ' 份不补单' : '', desired, available);
+      recorded.costBefore = beforeCost;
+      recorded.costRemoved = costRemoved;
+      recorded.costPerShare = beforeCost / beforeShares;
+      recorded.remainingCost = state.cost;
     }
 
     for (var i = startIndex; i <= endIndex; i += 1) {
@@ -295,6 +312,8 @@
     });
 
     var last = daily[daily.length - 1];
+    var realizedCost = last.redeemed - last.realizedProfit;
+    var realizedReturn = realizedCost > EPSILON ? last.realizedProfit / realizedCost : null;
     return {
       config: {
         amount: config.amount,
@@ -311,13 +330,17 @@
         invested: last.invested,
         redeemed: last.redeemed,
         realizedProfit: last.realizedProfit,
+        realizedReturn: realizedReturn,
+        realizedAnnualizedReturn: annualizedReturn(realizedReturn, config.startDate, last.date),
         shares: last.shares,
         remainingCost: last.remainingCost,
         marketValue: last.marketValue,
         holdingProfit: last.holdingProfit,
         holdingReturn: last.holdingReturn,
+        holdingAnnualizedReturn: annualizedReturn(last.holdingReturn, config.startDate, last.date),
         totalProfit: last.totalProfit,
-        totalReturn: last.totalReturn
+        totalReturn: last.totalReturn,
+        totalAnnualizedReturn: annualizedReturn(last.totalReturn, config.startDate, last.date)
       },
       daily: daily,
       trades: trades,
