@@ -503,7 +503,7 @@
         '<div class="metric"><span>最终等效份额</span><strong>—</strong></div>',
         '<div class="metric"><span>剩余成本</span><strong>—</strong></div>',
         '<div class="metric"><span>最终市值</span><strong>—</strong></div>',
-        '<div class="metric"><span>持有收益</span><strong>—</strong><small>—</small></div>',
+        '<div class="metric"><span>持有收益</span><strong>—</strong></div>',
         '<div class="metric primary-metric"><span>整体收益（含赎回）</span><strong>—</strong><small>—</small></div>'
       ].join('');
       return;
@@ -518,7 +518,7 @@
       metric('最终等效份额', { text: Number.isFinite(summary.shares) ? shareFormatter.format(summary.shares) : '—', raw: summary.shares }) +
       metric('剩余成本（元）', { text: formatNumber(summary.remainingCost), raw: summary.remainingCost }) +
       metric('最终市值（元）', { text: formatNumber(summary.marketValue), raw: summary.marketValue }) +
-      '<div class="metric"><span>持有收益</span><strong class="' + valueClass(summary.holdingProfit) + '">' + formatNumber(summary.holdingProfit, true) + '</strong><small>' + rateDetail(summary.holdingReturn, summary.holdingAnnualizedReturn) + '</small></div>' +
+      '<div class="metric"><span>持有收益</span><strong class="' + valueClass(summary.holdingProfit) + '">' + formatNumber(summary.holdingProfit, true) + '</strong></div>' +
       '<div class="metric primary-metric"><span>整体收益（含赎回）</span><strong class="' + valueClass(summary.totalProfit) + '">' + formatNumber(summary.totalProfit, true) + '</strong><small>' + rateDetail(summary.totalReturn, summary.totalAnnualizedReturn) + '</small></div>';
   }
 
