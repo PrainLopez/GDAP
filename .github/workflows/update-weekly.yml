@@ -2,7 +2,7 @@ name: 更新周度数据
 
 on:
   schedule:
-    # 每周日收盘时间刷新 880001 周K，顺带刷新季度 GDP/市值
+    # 每周日收盘时间刷新周度市值，顺带刷新季度 GDP/市值
     # （GDP 公布日期不固定，靠每周重跑自然补上最新季度）
     - cron: "0 4 * * 0"
   workflow_dispatch: # 允许手动触发
@@ -20,10 +20,12 @@ jobs:
         with:
           node-version: 22
 
-      - name: 抓取 880001 周K与季度数据
-        run: |
-          node scripts/fetch-weekly.mjs
-          node scripts/fetch.mjs
+      - name: 抓取周度市值（乐咕）
+        run: node scripts/fetch-weekly.mjs
+        timeout-minutes: 5
+
+      - name: 抓取季度 GDP 与市值
+        run: node scripts/fetch.mjs
         timeout-minutes: 5
 
       - name: 提交数据文件（有变化时）
@@ -34,6 +36,6 @@ jobs:
           if git diff --cached --quiet; then
             echo "数据无变化"
           else
-            git commit -m "chore(data): 更新 880001 与季度数据 $(date -u +%F)"
+            git commit -m "chore(data): 更新市值与季度数据 $(date -u +%F)"
             git push
           fi

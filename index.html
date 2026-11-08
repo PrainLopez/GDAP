@@ -101,7 +101,7 @@
 <div class="wrap">
   <header>
     <h1>A股总市值 vs 国内生产总值（GDP）</h1>
-    <div class="sub">总市值：通达信 880001 季度末收盘点位（×100 = 总市值，亿元） · GDP：之前四个季度单季 GDP 之和 · 比值即"巴菲特指标"</div>
+    <div class="sub">总市值：乐咕乐股全A总市值，季度末收盘（亿元） · GDP：之前四个季度单季 GDP 之和 · 比值即"巴菲特指标"</div>
   </header>
 
   <div class="stats" id="stats"></div>
@@ -114,7 +114,7 @@
   <div class="chart-box" id="chartWeeklyBox" style="display:none"><div id="chartWeekly" class="chart"></div></div>
 
   <footer>
-    总市值来源：通达信 880001 指数（通达信行情服务器自动抓取），每季度最后一个交易日收盘点位，点位 ×100 即全部 A 股总市值（亿元）。<br>
+    总市值来源：乐咕乐股「总市值/GDP 巴菲特指标」日频全A总市值序列（沪深北三所已上市股票合计），每季度最后一个交易日数值（亿元）。<br>
     GDP 来源：东方财富数据中心（转引国家统计局），由季度累计值差分得到单季值；每个位点的分母为该季度之前四个季度的单季 GDP 之和。<br>
     巴菲特指标 = 总市值 ÷ 前四季度 GDP。70% 为常用低估参考线，仅作观察，不构成投资建议。
   </footer>
@@ -309,7 +309,7 @@
     title: '总市值 与 前四季度 GDP（万亿元）',
     labels: labels,
     series: [
-      { label: '总市值（880001）', color: '#0969da', values: capSeries, extra: singleExtra },
+      { label: '总市值（全A）', color: '#0969da', values: capSeries, extra: singleExtra },
       { label: 'GDP 前四季度之和', color: '#2da44e', values: gdpSeries, extra: singleExtra },
       { label: 'GDP 前四季度 × 70%', color: '#cf222e', values: gdp70Series, dash: true, extra: singleExtra },
     ],

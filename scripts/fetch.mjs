@@ -1,6 +1,9 @@
 // 季度数据生成脚本：Node 18+ 直接运行 `node scripts/fetch.mjs`
 //   GDP  - 自动抓取：东方财富数据中心（转引国家统计局），DOMESTICL_PRODUCT_BASE 为当季累计值（亿元）
-//   市值 - 自动抓取：通达信行情协议取 880001 季度K线收盘点位（×100 = 全部 A 股总市值，亿元）
+//   市值 - 自动抓取：乐咕乐股「总市值/GDP」日频全A总市值序列（沪深北三所已上市股票，单位亿元），
+//          取每季度最后一个交易日为该季收盘市值
+//          （2026-10 起通达信 880001 免费K线通道失效，改用乐咕 source；详见 scripts/legu.mjs；
+//            历史序列整体按乐咕口径重构，与旧 880001 口径存在约 ±13% 的差异）
 //          data/market_cap.manual.json 可覆盖指定季度（如 [{"quarter":"2025Q4","value":1050000}]）
 // 输出 data/data.js（页面直接 <script> 引入，file:// 双击可开）
 // 周度数据由 scripts/fetch-weekly.mjs 单独生成（data/weekly.js）
@@ -8,7 +11,7 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { fetch880001Quarterly } from './tdx.mjs';
+import { fetchLeguDailyCap } from './legu.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DATA_DIR = join(ROOT, 'data');
@@ -69,9 +72,14 @@ async function fetchGdp() {
     }
   }
 
-  // 截断 2011Q4 之前的数据（880001 季度K线从 2011Q4 起，更早季度无配对市值）。
+  // 截断 2011Q4 之前的数据（更早季度无配对市值）。
   // 注意：prevTtm 必须先用完整历史算好再截断——2011Q4 的分母需要 2010Q4–2011Q3 的单季值
   return singles.filter((s) => s.year > 2011 || (s.year === 2011 && s.q >= 4));
+}
+
+// ---------- 市值（乐咕） ----------
+function quarterKey(dateStr) {
+  return `${dateStr.slice(0, 4)}Q${Math.ceil(Number(dateStr.slice(5, 7)) / 3)}`;
 }
 
 // ---------- 主流程 ----------
@@ -86,30 +94,43 @@ async function readJsonSafe(file, fallback) {
 async function main() {
   await mkdir(DATA_DIR, { recursive: true });
 
-  const [gdp, bars] = await Promise.all([fetchGdp(), fetch880001Quarterly()]);
+  const [gdp, daily] = await Promise.all([fetchGdp(), fetchLeguDailyCap()]);
   console.log(`GDP 季度数: ${gdp.length}，最新: ${gdp.at(-1).year}Q${gdp.at(-1).q}`);
+  console.log(`乐咕日频市值 ${daily.length} 条，最新: ${daily.at(-1).date}`);
 
-  // 880001 季度K收盘点位 × 100 = 总市值（亿元）
-  const fromTdx = bars.map((b) => {
-    const y = b.date.slice(0, 4);
-    const q = Math.ceil(Number(b.date.slice(5, 7)) / 3);
-    return { quarter: `${y}Q${q}`, date: b.date, value: Math.round(b.close * 100) };
-  });
+  // 每季度取「最后一个交易日」的市值（亿元）
+  const map = new Map();
+  for (const r of daily) {
+    const q = quarterKey(r.date);
+    if (!map.has(q)) map.set(q, []);
+    map.get(q).push(r);
+  }
+  const fromLegu = [...map.values()]
+    .map((rows) => {
+      const last = rows.at(-1);
+      return {
+        quarter: quarterKey(last.date),
+        date: last.date,
+        value: Math.round(last.marketCap),
+      };
+    })
+    .sort((a, b) => a.quarter.localeCompare(b.quarter));
 
   // 手工覆盖（格式 [{"quarter":"2025Q4","value":1050000}]，单位亿元）
   const manual = await readJsonSafe(MANUAL_FILE, []);
-  const merged = new Map(fromTdx.map((m) => [m.quarter, m]));
+  const merged = new Map(fromLegu.map((m) => [m.quarter, m]));
   for (const m of manual) merged.set(m.quarter, { ...m, manual: true });
   const marketCap = [...merged.values()]
     .filter((m) => m.quarter >= '2011Q4') // 与 GDP 截断点对齐
     .sort((a, b) => a.quarter.localeCompare(b.quarter));
+  if (!marketCap.length) throw new Error('市值序列为空：检查乐咕源可用性');
 
   const out = `// 由 scripts/fetch.mjs 生成，请勿手改
 window.GDAP_DATA = ${JSON.stringify({ gdp, marketCap }, null, 1)};
 `;
   await writeFile(join(DATA_DIR, 'data.js'), out);
   const last = marketCap.at(-1);
-  console.log(`880001 市值点 ${marketCap.length} 个，最新: ${last.quarter}（${last.date || '手工'}）${last.value} 亿元`);
+  console.log(`市值点 ${marketCap.length} 个，最新: ${last.quarter}（${last.date || '手工'}）${last.value} 亿元`);
   console.log('已写入 data/data.js');
 }
 

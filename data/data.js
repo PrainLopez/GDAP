@@ -417,8 +417,8 @@ window.GDAP_DATA = {
   {
    "year": 2026,
    "q": 3,
-   "cumulative": 1071071,
-   "single": 375367,
+   "cumulative": 1071071.2,
+   "single": 375367.2,
    "prevTtm": 1437721.6
   }
  ],
@@ -426,307 +426,307 @@ window.GDAP_DATA = {
   {
    "quarter": "2011Q4",
    "date": "2011-12-30",
-   "value": 214581
+   "value": 246112
   },
   {
    "quarter": "2012Q1",
    "date": "2012-03-30",
-   "value": 223179
+   "value": 259603
   },
   {
    "quarter": "2012Q2",
    "date": "2012-06-29",
-   "value": 224933
+   "value": 256830
   },
   {
    "quarter": "2012Q3",
    "date": "2012-09-28",
-   "value": 212597
+   "value": 242237
   },
   {
    "quarter": "2012Q4",
    "date": "2012-12-31",
-   "value": 228675
+   "value": 262898
   },
   {
    "quarter": "2013Q1",
    "date": "2013-03-29",
-   "value": 232231
+   "value": 269257
   },
   {
    "quarter": "2013Q2",
    "date": "2013-06-28",
-   "value": 211281
+   "value": 241715
   },
   {
    "quarter": "2013Q3",
    "date": "2013-09-30",
-   "value": 239628
+   "value": 272224
   },
   {
    "quarter": "2013Q4",
    "date": "2013-12-31",
-   "value": 237380
+   "value": 269836
   },
   {
    "quarter": "2014Q1",
    "date": "2014-03-31",
-   "value": 235150
+   "value": 269331
   },
   {
    "quarter": "2014Q2",
    "date": "2014-06-30",
-   "value": 242741
+   "value": 274415
   },
   {
    "quarter": "2014Q3",
    "date": "2014-09-30",
-   "value": 291869
+   "value": 326394
   },
   {
    "quarter": "2014Q4",
    "date": "2014-12-31",
-   "value": 370940
+   "value": 418574
   },
   {
    "quarter": "2015Q1",
    "date": "2015-03-31",
-   "value": 475333
+   "value": 535395
   },
   {
    "quarter": "2015Q2",
    "date": "2015-06-30",
-   "value": 582759
+   "value": 615301
   },
   {
    "quarter": "2015Q3",
    "date": "2015-09-30",
-   "value": 417985
+   "value": 464576
   },
   {
    "quarter": "2015Q4",
    "date": "2015-12-31",
-   "value": 529336
+   "value": 590785
   },
   {
    "quarter": "2016Q1",
    "date": "2016-03-31",
-   "value": 452474
+   "value": 498392
   },
   {
    "quarter": "2016Q2",
    "date": "2016-06-30",
-   "value": 461524
+   "value": 508106
   },
   {
    "quarter": "2016Q3",
    "date": "2016-09-30",
-   "value": 483273
+   "value": 530126
   },
   {
    "quarter": "2016Q4",
    "date": "2016-12-30",
-   "value": 505802
+   "value": 555715
   },
   {
    "quarter": "2017Q1",
    "date": "2017-03-31",
-   "value": 537650
+   "value": 589429
   },
   {
    "quarter": "2017Q2",
    "date": "2017-06-30",
-   "value": 533818
+   "value": 588973
   },
   {
    "quarter": "2017Q3",
    "date": "2017-09-29",
-   "value": 567092
+   "value": 626290
   },
   {
    "quarter": "2017Q4",
    "date": "2017-12-29",
-   "value": 565245
+   "value": 628304
   },
   {
    "quarter": "2018Q1",
    "date": "2018-03-30",
-   "value": 557758
+   "value": 617333
   },
   {
    "quarter": "2018Q2",
    "date": "2018-06-29",
-   "value": 503432
+   "value": 545435
   },
   {
    "quarter": "2018Q3",
    "date": "2018-09-28",
-   "value": 485568
+   "value": 539306
   },
   {
    "quarter": "2018Q4",
    "date": "2018-12-28",
-   "value": 434144
+   "value": 484979
   },
   {
    "quarter": "2019Q1",
    "date": "2019-03-29",
-   "value": 561670
+   "value": 604702
   },
   {
    "quarter": "2019Q2",
-   "date": "2019-06-28",
-   "value": 534942
+   "date": "2019-06-30",
+   "value": 599697
   },
   {
    "quarter": "2019Q3",
-   "date": "2019-09-30",
-   "value": 543998
+   "date": "2019-09-29",
+   "value": 611661
   },
   {
    "quarter": "2019Q4",
-   "date": "2019-12-31",
-   "value": 591698
+   "date": "2019-12-30",
+   "value": 655607
   },
   {
    "quarter": "2020Q1",
    "date": "2020-03-31",
-   "value": 561563
+   "value": 619798
   },
   {
    "quarter": "2020Q2",
    "date": "2020-06-30",
-   "value": 647198
+   "value": 706202
   },
   {
    "quarter": "2020Q3",
-   "date": "2020-09-30",
-   "value": 720005
+   "date": "2020-09-29",
+   "value": 786840
   },
   {
    "quarter": "2020Q4",
-   "date": "2020-12-31",
-   "value": 795914
+   "date": "2020-12-30",
+   "value": 853210
   },
   {
    "quarter": "2021Q1",
    "date": "2021-03-31",
-   "value": 782075
+   "value": 857350
   },
   {
    "quarter": "2021Q2",
    "date": "2021-06-30",
-   "value": 862077
+   "value": 937488
   },
   {
    "quarter": "2021Q3",
-   "date": "2021-09-30",
-   "value": 865727
+   "date": "2021-09-29",
+   "value": 925650
   },
   {
    "quarter": "2021Q4",
-   "date": "2021-12-31",
-   "value": 915654
+   "date": "2021-12-30",
+   "value": 982733
   },
   {
    "quarter": "2022Q1",
    "date": "2022-03-31",
-   "value": 803844
+   "value": 888803
   },
   {
    "quarter": "2022Q2",
    "date": "2022-06-30",
-   "value": 847456
+   "value": 939532
   },
   {
    "quarter": "2022Q3",
-   "date": "2022-09-30",
-   "value": 760679
+   "date": "2022-09-29",
+   "value": 851566
   },
   {
    "quarter": "2022Q4",
-   "date": "2022-12-30",
-   "value": 788744
+   "date": "2022-12-29",
+   "value": 871678
   },
   {
    "quarter": "2023Q1",
-   "date": "2023-03-31",
-   "value": 849949
+   "date": "2023-03-30",
+   "value": 939388
   },
   {
    "quarter": "2023Q2",
    "date": "2023-06-30",
-   "value": 833895
+   "value": 933304
   },
   {
    "quarter": "2023Q3",
    "date": "2023-09-28",
-   "value": 802808
+   "value": 905515
   },
   {
    "quarter": "2023Q4",
    "date": "2023-12-29",
-   "value": 776256
+   "value": 876280
   },
   {
    "quarter": "2024Q1",
    "date": "2024-03-29",
-   "value": 771080
+   "value": 880516
   },
   {
    "quarter": "2024Q2",
    "date": "2024-06-28",
-   "value": 734932
+   "value": 849455
   },
   {
    "quarter": "2024Q3",
    "date": "2024-09-30",
-   "value": 845438
+   "value": 967119
   },
   {
    "quarter": "2024Q4",
    "date": "2024-12-31",
-   "value": 858557
+   "value": 987160
   },
   {
    "quarter": "2025Q1",
    "date": "2025-03-31",
-   "value": 870538
+   "value": 996968
   },
   {
    "quarter": "2025Q2",
    "date": "2025-06-30",
-   "value": 906515
+   "value": 1046724
   },
   {
    "quarter": "2025Q3",
    "date": "2025-09-30",
-   "value": 1058840
+   "value": 1193471
   },
   {
    "quarter": "2025Q4",
    "date": "2025-12-31",
-   "value": 1087596
+   "value": 1226710
   },
   {
    "quarter": "2026Q1",
    "date": "2026-03-31",
-   "value": 1084729
+   "value": 1226861
   },
   {
    "quarter": "2026Q2",
    "date": "2026-06-30",
-   "value": 1189604
+   "value": 1329917
   },
   {
    "quarter": "2026Q3",
    "date": "2026-09-30",
-   "value": 1113471
+   "value": 1260766
   },
   {
    "quarter": "2026Q4",
-   "date": "2026-10-21",
-   "value": 1048772
+   "date": "2026-11-06",
+   "value": 1171458
   }
  ]
 };
